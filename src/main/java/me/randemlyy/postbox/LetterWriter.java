@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import org.jspecify.annotations.NonNull;
@@ -28,7 +27,7 @@ public final class LetterWriter {
     private static final long TIMEOUT_TICKS = 20L * 60L;
     private static final int MAX_MESSAGE_LENGTH = 400;
 
-    private static final Map<UUID, Session> Sessions = new HashMap<>();
+    private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
     private record Session(InteractionHand hand, Stage stage, String recipientName, long expiresAt) {}
 
@@ -41,7 +40,7 @@ public final class LetterWriter {
     }
 
     public static void useLetter(Player player, InteractionHand hand, @NonNull ItemStack stack) {
-        if (stack.get(DataComponents.LORE) != null) {
+        if (stack.hasNonDefault(DataComponents.LORE)) {
             read(player, stack);
             return;
         }
@@ -52,7 +51,7 @@ public final class LetterWriter {
             return;
         }
 
-        long expiresAt = player.level().getLevelData.getGameTime() + TIMEOUT_TICKS;
+        long expiresAt = player.level().getLevelData().getGameTime() + TIMEOUT_TICKS;
         SESSIONS.put(player.getUUID(), new Session(hand, Stage.ASK_NAME, null, expiresAt));
 
         player.sendSystemMessage(Component.literal("Who is this letter for? Type a player name, or cancel.")
@@ -66,8 +65,7 @@ public final class LetterWriter {
         }
 
         long now = sender.level().getLevelData().getGameTime();
-        if (now > session.expiresAt) {
-
+        if (now > session.expiresAt()) {
             SESSIONS.remove(sender.getUUID());
             sender.sendSystemMessage(Component.literal("Your letter expired - that line was not saved")
                     .withStyle(ChatFormatting.GRAY));
@@ -103,11 +101,11 @@ public final class LetterWriter {
             return;
         }
 
-        if (target.getUUID().equals(sender.getUUID())) {
-            sender.sendSystemMessage(Component.literal("You cannot post a letter to yourself")
-                    .withStyle(ChatFormatting.RED));
-            return;
-        }
+//        if (target.getUUID().equals(sender.getUUID())) {
+//            sender.sendSystemMessage(Component.literal("You cannot post a letter to yourself")
+//                    .withStyle(ChatFormatting.RED));
+//            return;
+//        }
 
         long expiresAt = sender.level().getLevelData().getGameTime() + TIMEOUT_TICKS;
         SESSIONS.put(sender.getUUID(), new Session(session.hand(), Stage.ASK_MESSAGE, target.getScoreboardName(), expiresAt));
@@ -159,17 +157,21 @@ public final class LetterWriter {
         );
 
         stack.set(DataComponents.LORE, new ItemLore(lines));
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Sealed. Right-click the letter to read it.")
+        stack.set(DataComponents.CUSTOM_NAME,
+                Component.literal("Letter to " + session.recipientName()));
+
+        sender.sendSystemMessage(Component.literal("Sealed. Right-click the letter to read it.")
                 .withStyle(ChatFormatting.GREEN));
     }
 
     private static void read(Player player, @NonNull ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
+        if (lore == null || lore.lines().isEmpty()) {
             return;
         }
 
         player.sendSystemMessage(Component.literal("- Letter -").withStyle(ChatFormatting.WHITE));
+        assert lore != null;
         for (Component line : lore.lines()) {
             player.sendSystemMessage(line);
         }
