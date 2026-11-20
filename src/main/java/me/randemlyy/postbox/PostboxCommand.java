@@ -8,10 +8,16 @@ import net.minecraft.network.chat.Component;
 public class PostboxCommand {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(Commands.literal("postbox").executes(context -> {
-                context.getSource().sendSuccess(() -> Component.literal("postbox time baby"), false);
-                return Command.SINGLE_SUCCESS;
-            }));
+            dispatcher.register(Commands.literal("postbox")
+                    .executes(context -> {
+                        context.getSource().sendSuccess(() -> Component.literal("postbox time baby"), false);
+                        return Command.SINGLE_SUCCESS;
+                    })
+                    .then(Commands.literal("cancel").executes(context -> {
+                        LetterWriter.cancel(context.getSource().getPlayerOrException());
+                        return Command.SINGLE_SUCCESS;
+                    }))
+            );
         });
     }
 }

@@ -14,11 +14,10 @@ public class ModItems {
     public static final Item LETTER = Registry.register(
             BuiltInRegistries.ITEM,
             LETTER_KEY,
-            new Item(new Item.Properties().setId(LETTER_KEY))
+            new LetterItem(new Item.Properties().setId(LETTER_KEY))
     );
 
     public static void init() {
 
     }
-
 }
