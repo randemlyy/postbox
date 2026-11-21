@@ -151,8 +151,8 @@ public final class LetterWriter {
         SESSIONS.remove(sender.getUUID());
 
         List<Component> lines = List.of(
-                Component.literal("TO: " + session.recipientName()),
-                Component.literal("FROM: " + sender.getScoreboardName()),
+                Component.literal(LetterContents.TO_PREFIX + session.recipientName()),
+                Component.literal(LetterContents.FROM_PREFIX + sender.getScoreboardName()),
                 Component.literal(text)
         );
 
@@ -165,16 +165,17 @@ public final class LetterWriter {
     }
 
     private static void read(Player player, @NonNull ItemStack stack) {
-        ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null || lore.lines().isEmpty()) {
+        LetterContents contents = LetterContents.from(stack);
+
+        if (contents == null) {
             return;
         }
 
-        player.sendSystemMessage(Component.literal("- Letter -").withStyle(ChatFormatting.WHITE));
-        assert lore != null;
-        for (Component line : lore.lines()) {
-            player.sendSystemMessage(line);
-        }
+        player.sendSystemMessage(Component.literal("--- LETTER ---").withStyle(ChatFormatting.WHITE));
+        player.sendSystemMessage(Component.literal(LetterContents.TO_PREFIX + contents.to()));
+        player.sendSystemMessage(Component.literal(LetterContents.FROM_PREFIX + contents.from()));
+        player.sendSystemMessage(Component.literal(contents.message()));
+
     }
 
     public static void cancel(Player player) {
