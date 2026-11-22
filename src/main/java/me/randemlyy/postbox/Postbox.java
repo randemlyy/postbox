@@ -20,6 +20,7 @@ public class Postbox implements ModInitializer {
         PostboxCommand.register();
 		ModItems.init();
 		LetterWriter.init();
+		Courier.init();
 		LOGGER.info("Hello Fabric world!");
 	}
 
