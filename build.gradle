@@ -20,6 +20,21 @@ loom {
 			sourceSet sourceSets.client
 		}
 	}
+
+	runs {
+		client {
+			programArguments.addAll("--username", "randem1")
+			preferGradleTask = false
+		}
+
+		client2 {
+			client()
+			displayName = "Minecraft Client 2"
+			runDirectory = file("run2")
+			programArguments.addAll("--username", "randem2")
+			preferGradleTask = false
+		}
+	}
 }
 
 dependencies {

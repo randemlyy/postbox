@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import net.fabricmc.loader.impl.lib.sat4j.core.Vec;
+
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -108,9 +108,7 @@ public final class ParrotTheatre {
 
             if (now >= f.end()) {
                 if (f.stays()) {
-                    f.parrot().setNoAi(false);
-                    f.parrot().setNoGravity(false);
-                    f.parrot().setSilent(false);
+                    release(f.parrot());
                 } else {
                     f.parrot().discard();
                 }
@@ -126,6 +124,13 @@ public final class ParrotTheatre {
         }
 
         FLIGHTS.clear();
+    }
+
+    private static void release(Parrot parrot) {
+        parrot.setNoAi(false);
+        parrot.setNoGravity(false);
+        parrot.setSilent(false);
+        parrot.removeTag(COURIER_TAG);
     }
 
     private static float heading(Vec3 from, Vec3 to) {
