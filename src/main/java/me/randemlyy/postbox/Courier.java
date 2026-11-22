@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -27,17 +28,17 @@ public final class Courier {
 
     private record Return(UUID senderID, ParrotIdentity identity, long dueAt, long giveUpAt) {}
 
-    private static final List<Delivery> IN_FLIGHT = new ArrayList<>();
-
-    private record Delivery(UUID senderID, String senderName, UUID recipientID, String recipientName, ItemStack letter, long arriveAt, long expireAt) {}
+    private static MailboxData data(MinecraftServer server) {
+        return server.getDataStorage().computeIfAbsent(MailboxData.TYPE);
+    }
 
     private Courier() {}
 
     public static void init()                                                                                                              {
         ServerTickEvents.END_SERVER_TICK.register(Courier::tick);
+        ServerPlayerEvents.JOIN.register(Courier::onJoin);
 
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
-            IN_FLIGHT.clear();
             RETURNS.clear();
             ParrotTheatre.reset();
         });
@@ -54,11 +55,13 @@ public final class Courier {
 
         ItemStack letter = stack.copy();
 
-        IN_FLIGHT.add(new Delivery(
+        data(server).entries().add(new HeldMail(
                 sender.getUUID(), sender.getScoreboardName(),
                 recipient.getUUID(), recipient.getScoreboardName(),
                 letter, now + FLIGHT_TICKS, now + EXPIRY_TICKS
         ));
+        data(server).setDirty();
+        data(server).setDirty();
 
         RETURNS.add(new Return(
                 sender.getUUID(),
@@ -82,29 +85,32 @@ public final class Courier {
     }
 
     private static void tick(MinecraftServer server) {
+        MailboxData data = data(server);
         long now = now(server);
-        Iterator<Delivery> it = IN_FLIGHT.iterator();
+
+        Iterator<HeldMail> it = data.entries().iterator();
 
         while (it.hasNext()) {
-            Delivery d = it.next();
+            HeldMail mail = it.next();
 
-            if (now < d.arriveAt()) {
+            if (now < mail.arriveAt()) {
                 continue;
             }
 
-            ServerPlayer recipient = server.getPlayerList().getPlayer(d.recipientID());
+            ServerPlayer recipient = server.getPlayerList().getPlayer(mail.recipientID());
 
             if (recipient != null) {
-                deliver(recipient, d);
+                deliver(recipient, mail);
                 it.remove();
+                data.setDirty();
                 continue;
             }
 
-            if (now >= d.expireAt()) {
-                expire(server, d);
+            if (now >= mail.expireAt()) {
+                expire(server, mail);
                 it.remove();
+                data.setDirty();
             }
-
         }
 
         Iterator<Return> returns = RETURNS.iterator();
@@ -134,38 +140,63 @@ public final class Courier {
 
     }
 
-    private static void deliver(ServerPlayer recipient, Delivery d) {
-        ItemStack letter = d.letter.copy();
+    private static void deliver(ServerPlayer recipient, HeldMail mail) {
+        ItemStack stack = mail.stack().copy();
 
-        if (!recipient.getInventory().add(letter)) {
-            recipient.spawnAtLocation(recipient.level(), letter);
+        if (!recipient.getInventory().add(stack)) {
+            recipient.spawnAtLocation(recipient.level(), stack);
             recipient.sendSystemMessage(Component.literal("Your hands are full - the letter is dropped")
                     .withStyle(ChatFormatting.YELLOW));
         }
 
-        recipient.sendSystemMessage(Component.literal("A letter from " + d.senderName() + " arrives."));
-        recipient.level().playSound(null, recipient.blockPosition(), SoundEvents.PARROT_AMBIENT, SoundSource.NEUTRAL, 1.0f, 1.0f);
+        recipient.sendSystemMessage(Component.literal("A letter from " + mail.senderName() + " arrives."));
+        recipient.level().playSound(null, recipient.blockPosition(),
+                SoundEvents.PARROT_AMBIENT, SoundSource.NEUTRAL, 1.0f, 1.0f);
 
         ParrotTheatre.arrive(recipient);
     }
 
-    private static void expire(MinecraftServer server, Delivery d) {
-        ServerPlayer sender = server.getPlayerList().getPlayer(d.senderID());
+    private static void expire(MinecraftServer server, HeldMail mail) {
+        ServerPlayer sender = server.getPlayerList().getPlayer(mail.senderID());
 
         if (sender == null) {
             Postbox.LOGGER.info("Dropped an expired letter from {} to {}: sender offline",
-                    d.senderName(), d.recipientName());
+                    mail.senderName(), mail.recipientName());
             return;
         }
 
-        ItemStack letter = d.letter().copy();
+        ItemStack stack = mail.stack().copy();
 
-        if (!sender.getInventory().add(letter)) {
-            sender.spawnAtLocation(sender.level(), letter);
+        if (!sender.getInventory().add(stack)) {
+            sender.spawnAtLocation(sender.level(), stack);
         }
 
-        sender.sendSystemMessage(Component.literal("Your letter to " + d.recipientName()
+        sender.sendSystemMessage(Component.literal("Your letter to " + mail.recipientName()
                         + " came back undelivered")
                 .withStyle(ChatFormatting.GRAY));
+    }
+
+    private static void onJoin(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+
+        MailboxData data = data(server);
+        long now = now(server);
+        Iterator<HeldMail> it = data.entries().iterator();
+
+        while (it.hasNext()) {
+            HeldMail mail = it.next();
+
+            if (!mail.recipientID().equals(player.getUUID())) {
+                continue;
+            }
+
+            if (now < mail.arriveAt()) {
+                continue;
+            }
+
+            deliver(player, mail);
+            it.remove();
+            data.setDirty();
+        }
     }
 }
