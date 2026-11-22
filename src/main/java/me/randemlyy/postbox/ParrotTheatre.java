@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import net.fabricmc.loader.impl.lib.sat4j.core.Vec;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -15,25 +16,64 @@ public final class ParrotTheatre {
 
     private static final List<Flight> FLIGHTS = new ArrayList<>();
 
-    private record Flight(Parrot parrot, Vec3 from, Vec3 to, long start, long end) {}
+    public static final String COURIER_TAG = "postbox_courier";
+    private record Flight(Parrot parrot, Vec3 from, Vec3 to, long start, long end, boolean stays) {}
 
     private ParrotTheatre() {}
 
-    public static void depart(ServerPlayer player) {
-        Vec3 from = player.getEyePosition().add(0.0, -0.3, 0.0);
+    public static void depart(Parrot parrot, ServerPlayer player) {
+        Vec3 from = parrot.position();
         Vec3 to = from.add(player.getLookAngle().scale(5.0)).add(0.0, 4.0, 0.0);
 
-        spawn(player, from, to, 40L);
+        parrot.setNoAi(true);
+        parrot.setNoGravity(true);
+        parrot.setSilent(true);
+        parrot.setInvulnerableTime(60);
+        parrot.addTag(COURIER_TAG);
+
+        begin(parrot, from, to, 40L, false);
     }
 
     public static void arrive(ServerPlayer player) {
         Vec3 to = player.getEyePosition().add(0.0, -0.4, 0.0);
         Vec3 from = to.add(2.0, 5.0, 2.0);
 
-        spawn(player, from, to, 30L);
+        spawnArrival(player, from, to, 30L, false);
     }
 
-    private static void spawn(ServerPlayer player, Vec3 from, Vec3 to, long duration) {
+    public static void returnTo(ServerPlayer player, ParrotIdentity identity) {
+        Parrot parrot = identity.create(player.level());
+
+        if (parrot == null) {
+            return;
+        }
+
+        Vec3 to = player.getEyePosition().add(0.0, -0.4, 0.0);
+        Vec3 from = to.add(2.0, 5.0, 2.0);
+
+        parrot.setNoAi(true);
+        parrot.setNoGravity(true);
+        parrot.setSilent(true);
+        parrot.setInvulnerableTime(60);
+        parrot.addTag(COURIER_TAG);
+        parrot.setPos(from.x, from.y, from.z);
+        parrot.setYRot(heading(from, to));
+
+        player.level().addFreshEntity(parrot);
+
+        begin(parrot, from, to, 30L, true);   // stays = true
+    }
+
+
+    private static void begin(Parrot parrot, Vec3 from, Vec3 to, long duration, boolean stays) {
+        parrot.setPos(from.x, from.y, from.z);
+        parrot.setYRot(heading(from, to));
+
+        long now = parrot.level().getLevelData().getGameTime();
+        FLIGHTS.add(new Flight(parrot, from, to, now, now + duration, stays));
+    }
+
+    private static void spawnArrival(ServerPlayer player, Vec3 from, Vec3 to, long duration, boolean stays) {
         Parrot parrot = EntityTypes.PARROT.create(player.level(), EntitySpawnReason.TRIGGERED);
 
         if (parrot == null) {
@@ -43,13 +83,12 @@ public final class ParrotTheatre {
         parrot.setNoAi(true);
         parrot.setNoGravity(true);
         parrot.setSilent(true);
-        parrot.setPos(from.x, from.y, from.z);
-        parrot.setYRot(heading(from, to));
+        parrot.setInvulnerableTime(60);
+        parrot.addTag(COURIER_TAG);
 
         player.level().addFreshEntity(parrot);
 
-        long now = player.level().getLevelData().getGameTime();
-        FLIGHTS.add(new Flight(parrot, from, to, now, now + duration));
+        begin(parrot, from, to, duration, stays);
     }
 
     public static void tick(MinecraftServer server, long now) {
@@ -68,7 +107,14 @@ public final class ParrotTheatre {
             f.parrot().setDeltaMovement(step);
 
             if (now >= f.end()) {
-                f.parrot().discard();
+                if (f.stays()) {
+                    f.parrot().setNoAi(false);
+                    f.parrot().setNoGravity(false);
+                    f.parrot().setSilent(false);
+                } else {
+                    f.parrot().discard();
+                }
+
                 it.remove();
             }
         }

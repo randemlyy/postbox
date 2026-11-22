@@ -13,11 +13,19 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.item.ItemStack;
 
 public final class Courier {
     private static final long FLIGHT_TICKS = 100L; // 5 seconds
     private static final long EXPIRY_TICKS = 20L * 24_000L; // 20 ig days
+
+    private static final long RETURN_DUE_TICKS = 100L;
+    private static final long RETURN_GIVE_UP_TICKS = 24_000;
+
+    private static final List<Return> RETURNS = new ArrayList<>();
+
+    private record Return(UUID senderID, ParrotIdentity identity, long dueAt, long giveUpAt) {}
 
     private static final List<Delivery> IN_FLIGHT = new ArrayList<>();
 
@@ -30,6 +38,7 @@ public final class Courier {
 
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             IN_FLIGHT.clear();
+            RETURNS.clear();
             ParrotTheatre.reset();
         });
     }
@@ -38,7 +47,7 @@ public final class Courier {
         return server.overworld().getLevelData().getGameTime();
     }
 
-    public static void send(ServerPlayer sender, ServerPlayer recipient, ItemStack stack) {
+    public static void send(ServerPlayer sender, ServerPlayer recipient, ItemStack stack, Parrot parrot) {
         MinecraftServer server = sender.level().getServer();
 
         long now = now(server);
@@ -49,6 +58,13 @@ public final class Courier {
                 sender.getUUID(), sender.getScoreboardName(),
                 recipient.getUUID(), recipient.getScoreboardName(),
                 letter, now + FLIGHT_TICKS, now + EXPIRY_TICKS
+        ));
+
+        RETURNS.add(new Return(
+                sender.getUUID(),
+                ParrotIdentity.of(parrot),
+                now + RETURN_DUE_TICKS,
+                now + RETURN_GIVE_UP_TICKS
         ));
 
         if (!sender.hasInfiniteMaterials()) {
@@ -62,7 +78,7 @@ public final class Courier {
 
         sender.level().playSound(null, sender.blockPosition(), SoundEvents.PARROT_FLY, SoundSource.NEUTRAL, 1.0f, 1.2f);
 
-        ParrotTheatre.depart(sender);
+        ParrotTheatre.depart(parrot, sender);
     }
 
     private static void tick(MinecraftServer server) {
@@ -89,6 +105,29 @@ public final class Courier {
                 it.remove();
             }
 
+        }
+
+        Iterator<Return> returns = RETURNS.iterator();
+
+        while (returns.hasNext()) {
+            Return r = returns.next();
+
+            if (now < r.dueAt()) {
+                continue;
+            }
+
+            ServerPlayer owner = server.getPlayerList().getPlayer(r.senderID());
+
+            if (owner == null) {
+                if (now >= r.giveUpAt()) {
+                    returns.remove();
+                }
+                continue;
+            }
+
+            ParrotTheatre.returnTo(owner, r.identity());
+            owner.sendSystemMessage(Component.literal("Your parrot is back").withStyle(ChatFormatting.GRAY));
+            returns.remove();
         }
 
         ParrotTheatre.tick(server, now);

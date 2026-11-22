@@ -1,6 +1,9 @@
 package me.randemlyy.postbox;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -10,12 +13,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.NonNull;
-import net.minecraft.world.entity.animal.parrot.Parrot;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
 
 
 public class LetterItem extends Item{
@@ -39,8 +36,8 @@ public class LetterItem extends Item{
     @Override
     public @NonNull InteractionResult interactLivingEntity(@NonNull ItemStack stack, @NonNull Player player, @NonNull LivingEntity target, @NonNull InteractionHand hand) {
 
-        // parrot check
-        if (!(target instanceof Parrot)) {
+        // checks
+        if (!(target instanceof Parrot parrot)) {
             return InteractionResult.PASS;
         }
 
@@ -52,12 +49,16 @@ public class LetterItem extends Item{
             return InteractionResult.PASS;
         }
 
+        // already flying
+        if (parrot.entityTags().contains(ParrotTheatre.COURIER_TAG)) {
+            return InteractionResult.PASS;
+        }
+
         LetterContents contents = LetterContents.from(stack);
 
         if (contents == null) {
             sender.sendSystemMessage(Component.literal("This letter is currently empty, right-click the air to write")
                     .withStyle(ChatFormatting.RED));
-
             return InteractionResult.PASS;
         }
 
@@ -68,11 +69,21 @@ public class LetterItem extends Item{
         if (recipient == null) {
             sender.sendSystemMessage(Component.literal(contents.to() + " is not online. Letters need a parrot, and parrots need somewhere to land")
                     .withStyle(ChatFormatting.RED));
-
             return InteractionResult.PASS;
         }
 
-        Courier.send(sender, recipient, stack);
+        // tamed parrot check
+        if (parrot.isTame() && !parrot.isOwnedBy(sender)) {
+            sender.sendSystemMessage(Component.literal("That parrot belongs to somebody else")
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.PASS;
+        }
+
+        if (parrot.isPassenger()) {
+            parrot.stopRiding();
+        }
+
+        Courier.send(sender, recipient, stack, parrot);
         return InteractionResult.SUCCESS_SERVER;
     }
 }
