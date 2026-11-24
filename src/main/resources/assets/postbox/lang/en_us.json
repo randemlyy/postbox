@@ -1,4 +1,6 @@
 {
   "item.postbox.letter": "Letter",
-  "block.postbox.mailbox": "Mailbox"
+  "block.postbox.mailbox": "Mailbox",
+  "postbox.mailbox.owner": "Mailbox of %s",
+  "postbox.mailbox.unowned": "This mailbox has no owner."
 }

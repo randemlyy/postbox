@@ -19,6 +19,7 @@ public class Postbox implements ModInitializer {
 	public void onInitialize() {
         PostboxCommand.register();
 		ModBlocks.init();
+		ModBlockEntities.init();
 		ModItems.init();
 		LetterWriter.init();
 		Courier.init();
