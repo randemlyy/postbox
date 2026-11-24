@@ -22,6 +22,7 @@ public class Postbox implements ModInitializer {
 		ModBlockEntities.init();
 		ModItems.init();
 		LetterWriter.init();
+		ParcelWriter.init();
 		Courier.init();
 		LOGGER.info("Hello Fabric world!");
 	}

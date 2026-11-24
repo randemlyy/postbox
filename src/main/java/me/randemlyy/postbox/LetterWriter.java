@@ -51,6 +51,12 @@ public final class LetterWriter {
             return;
         }
 
+        if (ParcelWriter.isWriting(player.getUUID())) {
+            player.sendSystemMessage(Component.literal("You're already addressing a parcel! Type cancel first.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+
         long expiresAt = player.level().getLevelData().getGameTime() + TIMEOUT_TICKS;
         SESSIONS.put(player.getUUID(), new Session(hand, Stage.ASK_NAME, null, expiresAt));
 
@@ -186,4 +192,7 @@ public final class LetterWriter {
 
     }
 
+    public static boolean isWriting(UUID id) {
+        return SESSIONS.containsKey(id);
+    }
 }
