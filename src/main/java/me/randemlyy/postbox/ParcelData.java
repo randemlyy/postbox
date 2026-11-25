@@ -16,6 +16,7 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 public final class ParcelData extends SavedData {
 
     public static final Codec<ParcelData> CODEC = Parcel.CODEC.listOf().xmap(ParcelData::new, ParcelData::entries);
+    public static final int MAX_PER_RECIPIENT = 64;
 
     public static final SavedDataType<ParcelData> TYPE = new SavedDataType<>(
             Postbox.id("parcels"),

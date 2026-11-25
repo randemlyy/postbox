@@ -5,5 +5,8 @@
   "postbox.mailbox.unowned": "This mailbox has no owner.",
   "postbox.mailbox.not_yours": "This mailbox belongs to %s.",
   "postbox.screen.refresh": "Refresh",
-  "postbox.screen.parcels_waiting": "Parcels waiting: %s"
+  "postbox.screen.parcels_waiting": "Parcels waiting: %s",
+  "postbox.screen.empty": "Your mailbox is empty",
+  "postbox.screen.from": "from %s",
+  "postbox.screen.more": "and %s more"
 }

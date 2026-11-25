@@ -18,7 +18,6 @@ import net.minecraft.world.InteractionHand;
 public final class ParcelWriter {
 
     private static final long TIMEOUT_TICKS = 20L * 60L;
-    private static final int MAX_PARCELS_PER_RECIPIENT = 64;
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
@@ -92,7 +91,7 @@ public final class ParcelWriter {
 
         ParcelData parcels = ParcelData.of(sender.level().getServer());
 
-        if (parcels.forRecipient(target.ownerId()).size() >= MAX_PARCELS_PER_RECIPIENT) {
+        if (parcels.forRecipient(target.ownerId()).size() >= ParcelData.MAX_PER_RECIPIENT) {
             sender.sendSystemMessage(Component.literal(target.ownerName() + "'s mailbox is full")
                     .withStyle(ChatFormatting.RED));
             return false;
