@@ -3,5 +3,7 @@
   "block.postbox.mailbox": "Mailbox",
   "postbox.mailbox.owner": "Mailbox of %s",
   "postbox.mailbox.unowned": "This mailbox has no owner.",
-  "postbox.mailbox.not_yours": "This mailbox belongs to %s."
+  "postbox.mailbox.not_yours": "This mailbox belongs to %s.",
+  "postbox.screen.refresh": "Refresh",
+  "postbox.screen.parcels_waiting": "Parcels waiting: %s"
 }

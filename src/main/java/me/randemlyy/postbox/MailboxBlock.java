@@ -2,6 +2,8 @@ package me.randemlyy.postbox;
 
 import java.util.List;
 
+import me.randemlyy.postbox.net.OpenMailboxPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -83,6 +85,11 @@ public class MailboxBlock extends Block implements EntityBlock {
         }
 
         if (!(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.SUCCESS;
+        }
+
+        if (ServerPlayNetworking.canSend(serverPlayer, OpenMailboxPayload.TYPE)) {
+            PostboxNetworking.sendMailbox(serverPlayer, pos);
             return InteractionResult.SUCCESS;
         }
 

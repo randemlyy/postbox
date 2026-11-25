@@ -18,6 +18,7 @@ public class Postbox implements ModInitializer {
 	@Override
 	public void onInitialize() {
         PostboxCommand.register();
+		PostboxNetworking.init();
 		ModBlocks.init();
 		ModBlockEntities.init();
 		ModItems.init();
