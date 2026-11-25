@@ -3,9 +3,9 @@
 	"id": "postbox",
 	"version": "${version}",
 	"name": "Postbox",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Deliver items and letter to your friends!",
 	"authors": [
-		"Me!"
+		"randemlyy"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",

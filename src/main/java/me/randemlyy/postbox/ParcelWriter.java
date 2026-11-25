@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.InteractionHand;
 
 public final class ParcelWriter {
@@ -71,8 +72,9 @@ public final class ParcelWriter {
         }
 
         MailboxDirectory directory = MailboxDirectory.of(sender.level().getServer());
+        MailboxDirectory.Entry target = directory.byName(text).orElse(null);
 
-        if (directory.byName(text).isEmpty()) {
+        if (target == null) {
             sender.sendSystemMessage(Component.literal("Nobody called \"" + text + "\" has a mailbox")
                     .withStyle(ChatFormatting.RED));
             sender.sendSystemMessage(mailboxList(sender.level().getServer()));
@@ -81,11 +83,38 @@ public final class ParcelWriter {
             return false;
         }
 
-        MailboxDirectory.Entry target = directory.byName(text).orElseThrow();
+        ItemStack held = sender.getItemInHand(session.hand());
+        if (held.isEmpty()) {
+            SESSIONS.remove(sender.getUUID());
+            sender.sendSystemMessage(Component.literal("Your hand is empty - parcel cancelled")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
         SESSIONS.remove(sender.getUUID());
 
-        sender.sendSystemMessage(Component.literal("Addressed to " + target.ownerName())
-                .withStyle(ChatFormatting.GREEN));
+        ItemStack contents = held.copy();
+        if (!sender.hasInfiniteMaterials()) {
+            held.shrink(contents.getCount());
+        }
+
+        ParcelData parcels = ParcelData.of(sender.level().getServer());
+        parcels.entries().add(new Parcel(
+                sender.getUUID(), sender.getScoreboardName(),
+                target.ownerId(), target.ownerName(),
+                contents, now));
+        parcels.setDirty();
+
+        sender.sendSystemMessage(Component.literal("Parcel sent to " + target.ownerName())
+                .withStyle(ChatFormatting.GOLD));
+
+        ServerPlayer online = sender.level().getServer().getPlayerList().getPlayer(target.ownerId());
+        if (online != null && !online.getUUID().equals(sender.getUUID())) {
+            online.sendSystemMessage(Component.literal("A parcel from " + sender.getScoreboardName()
+                            + " is waiting in your mailbox")
+                    .withStyle(ChatFormatting.GOLD));
+        }
+
         return false;
     }
 
