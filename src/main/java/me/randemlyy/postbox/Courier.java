@@ -55,13 +55,14 @@ public final class Courier {
 
         ItemStack letter = stack.copy();
 
-        data(server).entries().add(new HeldMail(
+        MailboxData data = data(server);
+
+        data.entries().add(new HeldMail(
                 sender.getUUID(), sender.getScoreboardName(),
                 recipient.getUUID(), recipient.getScoreboardName(),
                 letter, now + FLIGHT_TICKS, now + EXPIRY_TICKS
         ));
-        data(server).setDirty();
-        data(server).setDirty();
+        data.setDirty();
 
         RETURNS.add(new Return(
                 sender.getUUID(),

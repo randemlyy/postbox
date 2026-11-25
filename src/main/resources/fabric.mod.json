@@ -22,13 +22,6 @@
 			"me.randemlyy.postbox.client.PostboxClient"
 		]
 	},
-	"mixins": [
-		"postbox.mixins.json",
-		{
-			"config": "postbox.client.mixins.json",
-			"environment": "client"
-		}
-	],
 	"depends": {
 		"fabricloader": ">=0.20.1",
 		"minecraft": "~26.3",
