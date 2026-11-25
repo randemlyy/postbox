@@ -46,6 +46,13 @@ public class MailboxBlock extends Block implements EntityBlock {
         if (level instanceof ServerLevel serverLevel) {
             MailboxDirectory.of(serverLevel.getServer())
                     .register(serverLevel.dimension(), pos, player.getUUID(), player.getName().getString());
+            if (player instanceof ServerPlayer serverPlayer) {
+                int waiting = ParcelData.of(serverLevel.getServer()).forRecipient(player.getUUID()).size();
+                if (waiting > 0) {
+                    serverPlayer.sendSystemMessage(Component.literal("You have " + waiting + " parcel(s) waiting")
+                            .withStyle(ChatFormatting.GOLD));
+                }
+            }
         }
     }
 
@@ -127,7 +134,7 @@ public class MailboxBlock extends Block implements EntityBlock {
         level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.8f, 1.2f);
         return InteractionResult.SUCCESS;
     }
-    
+
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                           Player player, InteractionHand hand, BlockHitResult hit) {

@@ -18,6 +18,7 @@ import net.minecraft.world.InteractionHand;
 public final class ParcelWriter {
 
     private static final long TIMEOUT_TICKS = 20L * 60L;
+    private static final int MAX_PARCELS_PER_RECIPIENT = 64;
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
@@ -83,6 +84,20 @@ public final class ParcelWriter {
             return false;
         }
 
+        if (target.ownerId().equals(sender.getUUID())) {
+            sender.sendSystemMessage(Component.literal("You cannot post a parcel to yourself")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
+        ParcelData parcels = ParcelData.of(sender.level().getServer());
+
+        if (parcels.forRecipient(target.ownerId()).size() >= MAX_PARCELS_PER_RECIPIENT) {
+            sender.sendSystemMessage(Component.literal(target.ownerName() + "'s mailbox is full")
+                    .withStyle(ChatFormatting.RED));
+            return false;
+        }
+
         ItemStack held = sender.getItemInHand(session.hand());
         if (held.isEmpty()) {
             SESSIONS.remove(sender.getUUID());
@@ -98,7 +113,6 @@ public final class ParcelWriter {
             held.shrink(contents.getCount());
         }
 
-        ParcelData parcels = ParcelData.of(sender.level().getServer());
         parcels.entries().add(new Parcel(
                 sender.getUUID(), sender.getScoreboardName(),
                 target.ownerId(), target.ownerName(),
