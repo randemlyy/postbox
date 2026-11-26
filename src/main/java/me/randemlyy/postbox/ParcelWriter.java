@@ -12,7 +12,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.InteractionHand;
 
 public final class ParcelWriter {
@@ -97,35 +96,35 @@ public final class ParcelWriter {
             return false;
         }
 
-        ItemStack held = sender.getItemInHand(session.hand());
-        if (held.isEmpty()) {
-            SESSIONS.remove(sender.getUUID());
-            sender.sendSystemMessage(Component.literal("Your hand is empty - parcel cancelled")
+        ParcelPost.Result result = ParcelPost.send(sender, session.hand(), text, sender.getItemInHand(session.hand()).getCount());
+
+        switch (result.outcome()) {
+
+            case SENT -> {
+                SESSIONS.remove(sender.getUUID());
+                sender.sendSystemMessage(Component.translatable("postbox.notice.sent", result.recipientName()).withStyle(ChatFormatting.GOLD));
+            }
+
+            case EMPTY_HAND -> {
+                SESSIONS.remove(sender.getUUID());
+                sender.sendSystemMessage(Component.translatable("postbox.notice.empty_hand")
+                        .withStyle(ChatFormatting.RED));
+            }
+
+            case NO_MAILBOX -> {
+                sender.sendSystemMessage(Component.translatable("postbox.notice.no_mailbox", text)
+                        .withStyle(ChatFormatting.RED));
+                sender.sendSystemMessage(mailboxList(sender.level().getServer()));
+                sender.sendSystemMessage(Component.literal("Type another name or cancel")
+                        .withStyle(ChatFormatting.GRAY));
+            }
+
+            case SELF -> sender.sendSystemMessage(Component.translatable("postbox.notice.self")
                     .withStyle(ChatFormatting.RED));
-            return false;
-        }
 
-        SESSIONS.remove(sender.getUUID());
-
-        ItemStack contents = held.copy();
-        if (!sender.hasInfiniteMaterials()) {
-            held.shrink(contents.getCount());
-        }
-
-        parcels.entries().add(new Parcel(
-                sender.getUUID(), sender.getScoreboardName(),
-                target.ownerId(), target.ownerName(),
-                contents, now));
-        parcels.setDirty();
-
-        sender.sendSystemMessage(Component.literal("Parcel sent to " + target.ownerName())
-                .withStyle(ChatFormatting.GOLD));
-
-        ServerPlayer online = sender.level().getServer().getPlayerList().getPlayer(target.ownerId());
-        if (online != null && !online.getUUID().equals(sender.getUUID())) {
-            online.sendSystemMessage(Component.literal("A parcel from " + sender.getScoreboardName()
-                            + " is waiting in your mailbox")
-                    .withStyle(ChatFormatting.GOLD));
+            case FULL -> sender.sendSystemMessage(
+                    Component.translatable("postbox.notice.full", result.recipientName())
+                            .withStyle(ChatFormatting.RED));
         }
 
         return false;
