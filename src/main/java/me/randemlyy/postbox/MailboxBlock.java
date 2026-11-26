@@ -9,8 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -125,20 +123,7 @@ public class MailboxBlock extends Block implements EntityBlock {
             return InteractionResult.SUCCESS;
         }
 
-        ItemStack stack = parcel.stack().copy();
-        if (!serverPlayer.getInventory().add(stack)) {
-            serverPlayer.spawnAtLocation(serverPlayer.level(), stack);
-            player.sendSystemMessage(Component.literal("Your inventory is full - the parcel is at your feet")
-                    .withStyle(ChatFormatting.YELLOW));
-        }
-
-        player.sendSystemMessage(Component.literal("Took "
-                        + parcel.stack().getHoverName().getString()
-                        + " x" + parcel.stack().getCount()
-                        + " from " + parcel.senderName())
-                .withStyle(ChatFormatting.GREEN));
-
-        level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.8f, 1.2f);
+        ParcelDelivery.deliver(serverPlayer, parcel, pos);
         return InteractionResult.SUCCESS;
     }
 

@@ -3,11 +3,17 @@ package me.randemlyy.postbox.client;
 import me.randemlyy.postbox.net.MailboxRequestPayload;
 import me.randemlyy.postbox.net.OpenMailboxPayload;
 import me.randemlyy.postbox.net.ParcelEntry;
+import me.randemlyy.postbox.net.TakeParcelPayload;
+
+
+import net.minecraft.client.input.MouseButtonEvent;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+
+
 
 public class MailboxScreen extends Screen {
 
@@ -68,6 +74,11 @@ public class MailboxScreen extends Screen {
                 ParcelEntry entry = this.data.parcels().get(i);
                 int rowY = top + ROWS_TOP + i * ROW_HEIGHT;
 
+                if (mouseX >= left + 8 && mouseX < left + PANEL_WIDTH - 8 && mouseY >= rowY - 2 && mouseY < rowY + ROW_HEIGHT - 2) {
+                    graphics.fill(left + 8, rowY - 2,
+                            left + PANEL_WIDTH - 8, rowY + ROW_HEIGHT - 2, 0x30FFFFFF);
+                }
+
                 graphics.item(entry.stack(), left + 12, rowY);
                 graphics.itemDecorations(this.font, entry.stack(), left + 12, rowY);
 
@@ -88,6 +99,24 @@ public class MailboxScreen extends Screen {
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 || event.button() == 1) {
+            int left = (this.width - PANEL_WIDTH) / 2;
+            int top = (this.height - PANEL_HEIGHT) / 2;
+
+            for (int i = 0; i < this.data.parcels().size(); i++) {
+                int rowY = top + ROWS_TOP + i * ROW_HEIGHT;
+                if (event.x() >= left + 8 && event.x() < left + PANEL_WIDTH - 8 && event.y() >= rowY - 2 && event.y() < rowY + ROW_HEIGHT - 2) {
+                    ClientPlayNetworking.send(new TakeParcelPayload(this.data.pos(), i));
+                    return true;
+                }
+            }
+        }
+
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override

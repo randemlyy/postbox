@@ -63,4 +63,25 @@ public final class ParcelData extends SavedData {
         }
         return Optional.empty();
     }
+
+    public Optional<Parcel> takeAt(UUID recipientID, int index) {
+        if (index < 0) {
+            return Optional.empty();
+        }
+
+        int seen = 0;
+        Iterator<Parcel> it = entries.iterator();
+        while (it.hasNext()) {
+            Parcel parcel = it.next();
+            if (parcel.recipientId().equals(recipientID)) {
+                if (seen == index) {
+                    it.remove();
+                    setDirty();
+                    return Optional.of(parcel);
+                }
+                seen++;
+            }
+        }
+        return Optional.empty();
+    }
 }
