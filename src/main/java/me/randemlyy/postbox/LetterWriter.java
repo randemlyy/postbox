@@ -7,7 +7,6 @@ import java.util.UUID;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -50,13 +49,13 @@ public final class LetterWriter {
         }
 
         if (SESSIONS.containsKey(player.getUUID())) {
-            player.sendSystemMessage(Component.literal("You're already writing a message! Type cancel first")
+            player.sendSystemMessage(Component.translatable("postbox.chat.already_letter")
                     .withStyle(ChatFormatting.RED));
             return;
         }
 
         if (ParcelWriter.isWriting(player.getUUID())) {
-            player.sendSystemMessage(Component.literal("You're already addressing a parcel! Type cancel first.")
+            player.sendSystemMessage(Component.translatable("postbox.chat.already_parcel")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -64,7 +63,7 @@ public final class LetterWriter {
         long expiresAt = player.level().getLevelData().getGameTime() + TIMEOUT_TICKS;
         SESSIONS.put(player.getUUID(), new Session(hand, Stage.ASK_NAME, null, expiresAt));
 
-        player.sendSystemMessage(Component.literal("Who is this letter for? Type a player name, or cancel.")
+        player.sendSystemMessage(Component.translatable("postbox.chat.letter_who")
                 .withStyle(ChatFormatting.GOLD));
     }
 
@@ -77,14 +76,14 @@ public final class LetterWriter {
         long now = sender.level().getLevelData().getGameTime();
         if (now > session.expiresAt()) {
             SESSIONS.remove(sender.getUUID());
-            sender.sendSystemMessage(Component.literal("Your letter expired - that line was not saved")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.letter_expired")
                     .withStyle(ChatFormatting.GRAY));
             return false;
         }
 
         if (text.equalsIgnoreCase("cancel")) {
             SESSIONS.remove(sender.getUUID());
-            sender.sendSystemMessage(Component.literal("Letter discarded")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.letter_discarded")
                     .withStyle(ChatFormatting.GRAY));
             return false;
         }
@@ -103,10 +102,10 @@ public final class LetterWriter {
         ServerPlayer target = players.getPlayer(name);
 
         if (target == null) {
-            sender.sendSystemMessage(Component.literal("Nobody called \"" + name + "\" is online")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.not_online_named", name)
                     .withStyle(ChatFormatting.RED));
             sender.sendSystemMessage(onlineList(players));
-            sender.sendSystemMessage(Component.literal("Type another name or cancel")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.type_name_or_cancel")
                     .withStyle(ChatFormatting.GRAY));
             return;
         }
@@ -120,9 +119,9 @@ public final class LetterWriter {
         long expiresAt = sender.level().getLevelData().getGameTime() + TIMEOUT_TICKS;
         SESSIONS.put(sender.getUUID(), new Session(session.hand(), Stage.ASK_MESSAGE, target.getScoreboardName(), expiresAt));
 
-        sender.sendSystemMessage(Component.literal("To " + target.getScoreboardName() + ". Now type your message")
+        sender.sendSystemMessage(Component.translatable("postbox.chat.letter_target", target.getScoreboardName())
                 .withStyle(ChatFormatting.GOLD));
-        sender.sendSystemMessage(Component.literal("Don't start with a / - it becomes a command and skips the letter")
+        sender.sendSystemMessage(Component.translatable("postbox.chat.slash_hint")
                 .withStyle(ChatFormatting.GRAY));
 
     }
@@ -130,7 +129,7 @@ public final class LetterWriter {
     private static @NonNull Component onlineList(@NonNull PlayerList players) {
 
         // Creates the list of online players, its clickable so it's easier to compose a letter quicker
-        MutableComponent line = Component.literal("Online: ").withStyle(ChatFormatting.GRAY);
+        MutableComponent line = Component.translatable("postbox.chat.online").withStyle(ChatFormatting.GRAY);
 
         for (ServerPlayer p : players.getPlayers()) {
             String name = p.getScoreboardName();
@@ -144,7 +143,8 @@ public final class LetterWriter {
 
         // verifies max character limit of letter message
         if (text.length() > MAX_MESSAGE_LENGTH) {
-            sender.sendSystemMessage(Component.literal("Too long - keep it under " + MAX_MESSAGE_LENGTH + " characters"));
+            sender.sendSystemMessage(Component.translatable("postbox.chat.letter_too_long", MAX_MESSAGE_LENGTH)
+                    .withStyle(ChatFormatting.RED));
             return;
         }
 
@@ -153,7 +153,7 @@ public final class LetterWriter {
         // checks whether the letter is still equipped by the player when finishing the letter
         if (!(stack.getItem() instanceof LetterItem)) {
             SESSIONS.remove(sender.getUUID());
-            sender.sendSystemMessage(Component.literal("The letter is no longer in your hand - cancelled")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.letter_not_in_hand")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -162,7 +162,7 @@ public final class LetterWriter {
 
         seal(sender, stack, session.recipientName(), text);
 
-        sender.sendSystemMessage(Component.literal("Sealed. Right-click the letter to read it.")
+        sender.sendSystemMessage(Component.translatable("postbox.chat.letter_sealed")
                 .withStyle(ChatFormatting.GREEN));
     }
 
@@ -173,9 +173,9 @@ public final class LetterWriter {
             return;
         }
 
-        player.sendSystemMessage(Component.literal("--- LETTER ---").withStyle(ChatFormatting.WHITE));
-        player.sendSystemMessage(Component.literal(LetterContents.TO_PREFIX + contents.to()));
-        player.sendSystemMessage(Component.literal(LetterContents.FROM_PREFIX + contents.from()));
+        player.sendSystemMessage(Component.translatable("postbox.chat.letter_header").withStyle(ChatFormatting.WHITE));
+        player.sendSystemMessage(Component.translatable("postbox.letter.read_to", contents.to()));
+        player.sendSystemMessage(Component.translatable("postbox.letter.read_from", contents.from()));
         player.sendSystemMessage(Component.literal(contents.message()));
 
     }
@@ -185,15 +185,11 @@ public final class LetterWriter {
                 Component.literal(LetterContents.TO_PREFIX + recipientName),
                 Component.literal(LetterContents.FROM_PREFIX + sender.getScoreboardName()),
                 Component.literal(message))));
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Letter to " + recipientName));
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable("item.postbox.letter.to", recipientName));
     }
 
-    public static void cancel(Player player) {
-        boolean had = SESSIONS.remove(player.getUUID()) != null;
-
-        player.sendSystemMessage(Component.literal(had ? "Letter discarded." : "No letter currently being written")
-                .withStyle(ChatFormatting.GRAY));
-
+    public static boolean cancel(Player player) {
+        return SESSIONS.remove(player.getUUID()) != null;
     }
 
     public static boolean isWriting(UUID id) {

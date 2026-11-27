@@ -36,9 +36,9 @@ public class LetterReadScreen extends Screen {
         graphics.outline(left, top, W, H, 0xFF808080);
 
         graphics.text(this.font, Component.translatable("postbox.screen.letter"), left + 10, top + 10, 0xFFFFFFFF);
-        graphics.text(this.font, Component.literal(LetterContents.TO_PREFIX + this.contents.to()),
+        graphics.text(this.font, Component.translatable("postbox.letter.read_to", this.contents.to()),
                 left + 10, top + 28, 0xFFB0B0B0);
-        graphics.text(this.font, Component.literal(LetterContents.FROM_PREFIX + this.contents.from()),
+        graphics.text(this.font, Component.translatable("postbox.letter.read_from", this.contents.from()),
                 left + 10, top + 40, 0xFFB0B0B0);
 
         graphics.fill(left + 8, top + 54, left + W - 8, top + 55, 0xFF606060);

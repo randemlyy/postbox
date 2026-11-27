@@ -63,7 +63,7 @@ public class LetterItem extends Item{
         LetterContents contents = LetterContents.from(stack);
 
         if (contents == null) {
-            sender.sendSystemMessage(Component.literal("This letter is currently empty, right-click the air to write")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.letter_empty")
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.PASS;
         }
@@ -73,14 +73,14 @@ public class LetterItem extends Item{
         ServerPlayer recipient = server.getPlayerList().getPlayer(contents.to());
 
         if (recipient == null) {
-            sender.sendSystemMessage(Component.literal(contents.to() + " is not online. Letters need a parrot, and parrots need somewhere to land")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.letter_not_online", contents.to())
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.PASS;
         }
 
         // tamed parrot check
         if (parrot.isTame() && !parrot.isOwnedBy(sender)) {
-            sender.sendSystemMessage(Component.literal("That parrot belongs to somebody else")
+            sender.sendSystemMessage(Component.translatable("postbox.chat.parrot_owned")
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.PASS;
         }

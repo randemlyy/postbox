@@ -25,7 +25,6 @@ public class Postbox implements ModInitializer {
 		LetterWriter.init();
 		ParcelWriter.init();
 		Courier.init();
-		LOGGER.info("Hello Fabric world!");
 	}
 
 	public static Identifier id(String path) {

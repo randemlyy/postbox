@@ -49,7 +49,7 @@ public class MailboxBlock extends Block implements EntityBlock {
             if (player instanceof ServerPlayer serverPlayer) {
                 int waiting = ParcelData.of(serverLevel.getServer()).forRecipient(player.getUUID()).size();
                 if (waiting > 0) {
-                    serverPlayer.sendSystemMessage(Component.literal("You have " + waiting + " parcel(s) waiting")
+                    serverPlayer.sendSystemMessage(Component.translatable("postbox.chat.parcels_waiting", waiting)
                             .withStyle(ChatFormatting.GOLD));
                 }
             }
@@ -97,28 +97,28 @@ public class MailboxBlock extends Block implements EntityBlock {
             List<Parcel> waiting = parcels.forRecipient(player.getUUID());
 
             if (waiting.isEmpty()) {
-                player.sendSystemMessage(Component.literal("Your mailbox is empty")
+                player.sendSystemMessage(Component.translatable("postbox.chat.mailbox_empty")
                         .withStyle(ChatFormatting.GRAY));
                 return InteractionResult.SUCCESS;
             }
 
-            player.sendSystemMessage(Component.literal("Waiting: " + waiting.size())
+            player.sendSystemMessage(Component.translatable("postbox.chat.waiting", waiting.size())
                     .withStyle(ChatFormatting.GOLD));
             for (Parcel parcel : waiting) {
-                player.sendSystemMessage(Component.literal("- "
-                                + parcel.stack().getHoverName().getString()
-                                + " x" + parcel.stack().getCount()
-                                + " from " + parcel.senderName())
+                player.sendSystemMessage(Component.translatable("postbox.chat.parcel_row",
+                                parcel.stack().getHoverName(),
+                                parcel.stack().getCount(),
+                                parcel.senderName())
                         .withStyle(ChatFormatting.GRAY));
             }
-            player.sendSystemMessage(Component.literal("Shift-right-click to take one")
+            player.sendSystemMessage(Component.translatable("postbox.chat.take_hint")
                     .withStyle(ChatFormatting.DARK_GRAY));
             return InteractionResult.SUCCESS;
         }
 
         Parcel parcel = parcels.takeOldest(player.getUUID()).orElse(null);
         if (parcel == null) {
-            player.sendSystemMessage(Component.literal("Your mailbox is empty")
+            player.sendSystemMessage(Component.translatable("postbox.chat.mailbox_empty")
                     .withStyle(ChatFormatting.GRAY));
             return InteractionResult.SUCCESS;
         }

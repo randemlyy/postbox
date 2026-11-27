@@ -75,9 +75,9 @@ public final class Courier {
             stack.shrink(1);
         }
 
-        sender.sendSystemMessage(Component.literal("Your parrot has taken flight for " + recipient.getScoreboardName())
+        sender.sendSystemMessage(Component.translatable("postbox.chat.parrot_sent", recipient.getScoreboardName())
                 .withStyle(ChatFormatting.GOLD));
-        recipient.sendSystemMessage(Component.literal("A parrot is on its way with a letter from " + sender.getScoreboardName())
+        recipient.sendSystemMessage(Component.translatable("postbox.chat.parrot_incoming", sender.getScoreboardName())
                 .withStyle(ChatFormatting.GOLD));
 
         sender.level().playSound(null, sender.blockPosition(), SoundEvents.PARROT_FLY, SoundSource.NEUTRAL, 1.0f, 1.2f);
@@ -133,7 +133,7 @@ public final class Courier {
             }
 
             ParrotTheatre.returnTo(owner, r.identity());
-            owner.sendSystemMessage(Component.literal("Your parrot is back").withStyle(ChatFormatting.GRAY));
+            owner.sendSystemMessage(Component.translatable("postbox.chat.parrot_back").withStyle(ChatFormatting.GRAY));
             returns.remove();
         }
 
@@ -146,11 +146,11 @@ public final class Courier {
 
         if (!recipient.getInventory().add(stack)) {
             recipient.spawnAtLocation(recipient.level(), stack);
-            recipient.sendSystemMessage(Component.literal("Your hands are full - the letter is dropped")
+            recipient.sendSystemMessage(Component.translatable("postbox.chat.letter_dropped")
                     .withStyle(ChatFormatting.YELLOW));
         }
 
-        recipient.sendSystemMessage(Component.literal("A letter from " + mail.senderName() + " arrives."));
+        recipient.sendSystemMessage(Component.translatable("postbox.chat.letter_arrived", mail.senderName()));
         recipient.level().playSound(null, recipient.blockPosition(),
                 SoundEvents.PARROT_AMBIENT, SoundSource.NEUTRAL, 1.0f, 1.0f);
 
@@ -172,8 +172,7 @@ public final class Courier {
             sender.spawnAtLocation(sender.level(), stack);
         }
 
-        sender.sendSystemMessage(Component.literal("Your letter to " + mail.recipientName()
-                        + " came back undelivered")
+        sender.sendSystemMessage(Component.translatable("postbox.chat.letter_returned", mail.recipientName())
                 .withStyle(ChatFormatting.GRAY));
     }
 

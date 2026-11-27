@@ -18,7 +18,7 @@ public record SealLetterPayload(boolean mainHand, String to, String message) imp
             StreamCodec.composite(
                     ByteBufCodecs.BOOL, SealLetterPayload::mainHand,
                     ByteBufCodecs.stringUtf8(MAX_NAME), SealLetterPayload::to,
-                    ByteBufCodecs.stringUtf8(MAX_MESSAGE), SealLetterPayload::message,
+                    ByteBufCodecs.stringUtf8(MAX_MESSAGE * 4), SealLetterPayload::message,
                     SealLetterPayload::new);
 
     @Override

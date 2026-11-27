@@ -49,8 +49,8 @@ public final class ParcelPost {
 
         ServerPlayer online = sender.level().getServer().getPlayerList().getPlayer(target.ownerId());
         if (online != null) {
-            online.sendSystemMessage(Component.literal("A parcel from " + sender.getScoreboardName()
-                    + " is waiting in your mailbox").withStyle(ChatFormatting.GOLD));
+            online.sendSystemMessage(Component.translatable("postbox.chat.parcel_waiting",
+                    sender.getScoreboardName()).withStyle(ChatFormatting.GOLD));
         }
 
         return new Result(Outcome.SENT, target.ownerName(), count);
