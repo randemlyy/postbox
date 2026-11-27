@@ -57,6 +57,7 @@ public class MailboxScreen extends Screen {
     private Button nextPage;
 
     private int page;
+    private int nameScroll;
     private Component notice;
     private boolean noticeError;
     private boolean pendingSend;
@@ -131,7 +132,10 @@ public class MailboxScreen extends Screen {
         this.recipientBox.setMaxLength(16);
         this.recipientBox.setHint(Component.translatable("postbox.screen.to"));
         this.recipientBox.setValue(this.recipientDraft);
-        this.recipientBox.setResponder(value -> this.recipientDraft = value);
+        this.recipientBox.setResponder(value -> {
+            this.recipientDraft = value;
+            this.nameScroll = 0;
+        });
         addRenderableWidget(this.recipientBox);
 
         addRenderableWidget(Button.builder(Component.literal("-"), button -> adjustAmount(-1))
@@ -146,6 +150,10 @@ public class MailboxScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.literal("+"), button -> adjustAmount(1))
                 .bounds(left + 132, top + 66, 20, 18).build());
+
+        addRenderableWidget(Button.builder(Component.translatable("postbox.screen.max"),
+                        button -> setAmount(heldStack().getCount()))
+                .bounds(left + 160, top + 66, 40, 18).build());
 
         addRenderableWidget(Button.builder(Component.translatable("postbox.screen.back"), button -> setMode(Mode.INBOX))
                 .bounds(left + 10, buttonY, 88, 20).build());
@@ -207,12 +215,17 @@ public class MailboxScreen extends Screen {
     }
 
     private void adjustAmount(int delta) {
+        int step = Minecraft.getInstance().options.keyShift.isDown() ? 8 : 1;
+        setAmount(plannedAmount() + delta * step);
+    }
+
+    private void setAmount(int value) {
         int available = heldStack().getCount();
         if (available <= 0 || this.amountBox == null) {
             return;
         }
 
-        int next = Math.max(1, Math.min(plannedAmount() + delta, available));
+        int next = Math.max(1, Math.min(value, available));
         this.amountDraft = String.valueOf(next);
         this.amountBox.setValue(this.amountDraft);
     }
@@ -248,7 +261,7 @@ public class MailboxScreen extends Screen {
         return Math.max(1, Math.min(value, available));
     }
 
-    private List<String> visibleNames() {
+    private List<String> allNames() {
         String query = this.recipientBox == null
                 ? ""
                 : this.recipientBox.getValue().trim().toLowerCase(Locale.ROOT);
@@ -259,11 +272,15 @@ public class MailboxScreen extends Screen {
                 continue;
             }
             out.add(name);
-            if (out.size() >= MAX_VISIBLE_NAMES) {
-                break;
-            }
         }
         return out;
+    }
+
+    private List<String> visibleNames() {
+        List<String> all = allNames();
+        int from = Math.min(this.nameScroll, Math.max(0, all.size() - MAX_VISIBLE_NAMES));
+        int to = Math.min(from + MAX_VISIBLE_NAMES, all.size());
+        return all.subList(from, to);
     }
 
     @Override
@@ -287,7 +304,9 @@ public class MailboxScreen extends Screen {
         }
 
         if (this.notice != null && System.currentTimeMillis() < this.noticeUntil) {
-            graphics.text(this.font, this.notice, left + 10, top + 194,
+            String noticeText = this.font.plainSubstrByWidth(
+                    this.notice.getString(), PANEL_WIDTH - 20);
+            graphics.text(this.font, Component.literal(noticeText), left + 10, top + 194,
                     this.noticeError ? RED : GREEN);
         }
 
@@ -326,8 +345,10 @@ public class MailboxScreen extends Screen {
             ParcelEntry entry = this.data.parcels().get(i);
             int rowY = top + ROWS_TOP + i * ROW_HEIGHT;
 
-            if (mouseX >= left + 8 && mouseX < left + PANEL_WIDTH - 8
-                    && mouseY >= rowY - 2 && mouseY < rowY + ROW_HEIGHT - 2) {
+            boolean hovered = mouseX >= left + 8 && mouseX < left + PANEL_WIDTH - 8
+                    && mouseY >= rowY - 2 && mouseY < rowY + ROW_HEIGHT - 2;
+
+            if (hovered) {
                 graphics.fill(left + 8, rowY - 2,
                         left + PANEL_WIDTH - 8, rowY + ROW_HEIGHT - 2, 0x30FFFFFF);
             }
@@ -335,38 +356,67 @@ public class MailboxScreen extends Screen {
             graphics.item(entry.stack(), left + 12, rowY);
             graphics.itemDecorations(this.font, entry.stack(), left + 12, rowY);
 
-            graphics.text(this.font, entry.stack().getHoverName(),
-                    left + 34, rowY + 4, WHITE);
-
             Component from = Component.translatable("postbox.screen.from", entry.senderName());
+            int fromWidth = this.font.width(from);
+            int nameWidth = Math.max(20, PANEL_WIDTH - 34 - 10 - fromWidth - 8);
+            String name = this.font.plainSubstrByWidth(
+                    entry.stack().getHoverName().getString(), nameWidth);
+
+            graphics.text(this.font, Component.literal(name), left + 34, rowY + 4, WHITE);
             graphics.text(this.font, from,
-                    left + PANEL_WIDTH - 10 - this.font.width(from), rowY + 4, GRAY);
+                    left + PANEL_WIDTH - 10 - fromWidth, rowY + 4, GRAY);
+
+            if (hovered) {
+                graphics.setTooltipForNextFrame(this.font, entry.stack(), mouseX, mouseY);
+            }
         }
     }
 
     private void drawSend(GuiGraphicsExtractor graphics, int left, int top, int mouseX, int mouseY) {
+        ItemStack held = heldStack();
+
         graphics.text(this.font, Component.translatable("postbox.screen.to"),
                 left + 10, top + 47, DIM);
-        graphics.text(this.font, Component.translatable("postbox.screen.amount"),
-                left + 10, top + 71, DIM);
 
-        ItemStack held = heldStack();
+        Component amountLabel = held.isEmpty()
+                ? Component.translatable("postbox.screen.amount")
+                : Component.translatable("postbox.screen.amount_of", held.getCount());
+        graphics.text(this.font, amountLabel, left + 10, top + 71, DIM);
+
         if (held.isEmpty()) {
             graphics.text(this.font, Component.translatable("postbox.screen.hold_item"),
                     left + 10, top + 96, RED);
         } else {
             graphics.item(held, left + 10, top + 88);
             graphics.itemDecorations(this.font, held, left + 10, top + 88);
+
+            String itemName = this.font.plainSubstrByWidth(
+                    held.getHoverName().getString(), PANEL_WIDTH - 120);
             graphics.text(this.font,
                     Component.translatable("postbox.screen.sending",
-                            held.getHoverName(), plannedAmount(), held.getCount()),
+                            itemName, plannedAmount(), held.getCount()),
                     left + 32, top + 92, DIM);
+
+            if (mouseX >= left + 10 && mouseX < left + 26
+                    && mouseY >= top + 88 && mouseY < top + 104) {
+                graphics.setTooltipForNextFrame(this.font, held, mouseX, mouseY);
+            }
         }
 
         graphics.text(this.font, Component.translatable("postbox.screen.mailboxes"),
                 left + 10, top + 112, 0xFF808080);
 
+        List<String> all = allNames();
         List<String> names = visibleNames();
+
+        if (all.size() > MAX_VISIBLE_NAMES) {
+            int from = Math.min(this.nameScroll, Math.max(0, all.size() - MAX_VISIBLE_NAMES)) + 1;
+            int to = from + names.size() - 1;
+            Component range = Component.translatable("postbox.screen.range", from, to, all.size());
+            graphics.text(this.font, range,
+                    left + PANEL_WIDTH - 10 - this.font.width(range), top + 112, 0xFF808080);
+        }
+
         if (names.isEmpty()) {
             graphics.text(this.font, Component.translatable("postbox.screen.no_mailboxes"),
                     left + 10, top + NAMES_TOP + 3, 0xFF707070);
@@ -389,6 +439,33 @@ public class MailboxScreen extends Screen {
                     && !this.recipientBox.getValue().trim().isEmpty()
                     && plannedAmount() > 0;
         }
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        int left = panelLeft();
+        int top = panelTop();
+        int step = scrollY > 0 ? -1 : 1;
+
+        if (this.mode == Mode.INBOX) {
+            if (mouseX >= left + 8 && mouseX < left + PANEL_WIDTH - 8
+                    && mouseY >= top + ROWS_TOP
+                    && mouseY < top + ROWS_TOP + OpenMailboxPayload.PAGE_SIZE * ROW_HEIGHT) {
+                changePage(step);
+                return true;
+            }
+        } else if (mouseX >= left + 8 && mouseX < left + PANEL_WIDTH - 8
+                && mouseY >= top + NAMES_TOP
+                && mouseY < top + NAMES_TOP + MAX_VISIBLE_NAMES * NAME_ROW_HEIGHT) {
+            int max = Math.max(0, allNames().size() - MAX_VISIBLE_NAMES);
+            int next = Math.max(0, Math.min(this.nameScroll + step, max));
+            if (next != this.nameScroll) {
+                this.nameScroll = next;
+                return true;
+            }
+        }
+
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -437,6 +514,12 @@ public class MailboxScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         if (event.isEscape() && this.mode == Mode.SEND) {
             setMode(Mode.INBOX);
+            return true;
+        }
+        if (this.mode == Mode.SEND && event.isConfirmation()
+                && this.recipientBox != null && this.recipientBox.isFocused()
+                && this.amountBox != null) {
+            this.setInitialFocus(this.amountBox);
             return true;
         }
         if (super.keyPressed(event)) {

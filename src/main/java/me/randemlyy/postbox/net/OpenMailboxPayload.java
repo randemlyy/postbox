@@ -15,7 +15,7 @@ public record OpenMailboxPayload(BlockPos pos, String ownerName, int totalCount,
         implements CustomPacketPayload {
 
     public static final int PAGE_SIZE = 6;
-    public static final int MAX_MAILBOXES = 32;
+    public static final int MAX_MAILBOXES = 256;
 
     public static final Type<OpenMailboxPayload> TYPE = new Type<>(Postbox.id("open_mailbox"));
 
