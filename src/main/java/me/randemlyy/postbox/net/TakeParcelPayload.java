@@ -7,7 +7,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record TakeParcelPayload(BlockPos pos, int index) implements CustomPacketPayload {
+public record TakeParcelPayload(BlockPos pos, int index, int page) implements CustomPacketPayload {
 
     public static final Type<TakeParcelPayload> TYPE = new Type<>(Postbox.id("take_parcel"));
 
@@ -15,6 +15,7 @@ public record TakeParcelPayload(BlockPos pos, int index) implements CustomPacket
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC, TakeParcelPayload::pos,
                     ByteBufCodecs.VAR_INT, TakeParcelPayload::index,
+                    ByteBufCodecs.VAR_INT, TakeParcelPayload::page,
                     TakeParcelPayload::new);
 
     @Override

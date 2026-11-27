@@ -9,6 +9,7 @@ import me.randemlyy.postbox.net.MailboxRequestPayload;
 import me.randemlyy.postbox.net.OpenMailboxPayload;
 import me.randemlyy.postbox.net.ParcelEntry;
 import me.randemlyy.postbox.net.SendParcelPayload;
+import me.randemlyy.postbox.net.TakeAllParcelsPayload;
 import me.randemlyy.postbox.net.TakeParcelPayload;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -51,15 +52,21 @@ public class MailboxScreen extends Screen {
     private EditBox recipientBox;
     private EditBox amountBox;
     private Button sendButton;
+    private Button takeAllButton;
+    private Button prevPage;
+    private Button nextPage;
 
+    private int page;
     private Component notice;
     private boolean noticeError;
     private boolean pendingSend;
+    private boolean pendingTakeAll;
     private long noticeUntil;
 
     public MailboxScreen(OpenMailboxPayload data) {
         super(Component.translatable("block.postbox.mailbox"));
         this.data = data;
+        this.page = data.page();
     }
 
     public BlockPos pos() {
@@ -68,6 +75,9 @@ public class MailboxScreen extends Screen {
 
     public void update(OpenMailboxPayload payload) {
         this.data = payload;
+        this.page = payload.page();
+        this.pendingSend = false;
+        this.pendingTakeAll = false;
         this.rebuildWidgets();
         if (this.mode == Mode.SEND && this.recipientBox != null) {
             this.setInitialFocus(this.recipientBox);
@@ -76,17 +86,14 @@ public class MailboxScreen extends Screen {
 
     public void showNotice(MailboxNoticePayload payload) {
         showNotice(payload.key(), payload.arg(), payload.error());
-
-        this.pendingSend = true;
-
     }
 
     private void showNotice(String key, String arg, boolean error) {
         this.notice = Component.translatable(key, arg);
         this.noticeError = error;
         this.noticeUntil = System.currentTimeMillis() + NOTICE_MILLIS;
-        this.pendingSend = true;
-
+        this.pendingSend = false;
+        this.pendingTakeAll = false;
     }
 
     @Override
@@ -94,6 +101,9 @@ public class MailboxScreen extends Screen {
         this.recipientBox = null;
         this.amountBox = null;
         this.sendButton = null;
+        this.takeAllButton = null;
+        this.prevPage = null;
+        this.nextPage = null;
 
         int left = panelLeft();
         int top = panelTop();
@@ -101,11 +111,18 @@ public class MailboxScreen extends Screen {
 
         if (this.mode == Mode.INBOX) {
             addRenderableWidget(Button.builder(Component.translatable("postbox.screen.refresh"), button -> refresh())
-                    .bounds(left + 10, buttonY, 88, 20).build());
+                    .bounds(left + 2, buttonY, 68, 20).build());
             addRenderableWidget(Button.builder(Component.translatable("postbox.screen.send"), button -> setMode(Mode.SEND))
-                    .bounds(left + 106, buttonY, 88, 20).build());
+                    .bounds(left + 78, buttonY, 68, 20).build());
+            this.takeAllButton = addRenderableWidget(Button.builder(Component.translatable("postbox.screen.take_all"), button -> takeAll())
+                    .bounds(left + 154, buttonY, 68, 20).build());
             addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
-                    .bounds(left + 202, buttonY, 88, 20).build());
+                    .bounds(left + 230, buttonY, 68, 20).build());
+
+            this.prevPage = addRenderableWidget(Button.builder(Component.literal("<"), button -> changePage(-1))
+                    .bounds(left + PANEL_WIDTH - 48, top + 18, 16, 16).build());
+            this.nextPage = addRenderableWidget(Button.builder(Component.literal(">"), button -> changePage(1))
+                    .bounds(left + PANEL_WIDTH - 28, top + 18, 16, 16).build());
             return;
         }
 
@@ -144,7 +161,26 @@ public class MailboxScreen extends Screen {
     }
 
     private void refresh() {
-        ClientPlayNetworking.send(new MailboxRequestPayload(this.data.pos()));
+        ClientPlayNetworking.send(new MailboxRequestPayload(this.data.pos(), this.page));
+    }
+
+    private void changePage(int delta) {
+        int pages = Math.max(1, (this.data.totalCount() + OpenMailboxPayload.PAGE_SIZE - 1)
+                / OpenMailboxPayload.PAGE_SIZE);
+        int next = Math.max(0, Math.min(this.page + delta, pages - 1));
+        if (next == this.page) {
+            return;
+        }
+        this.page = next;
+        refresh();
+    }
+
+    private void takeAll() {
+        if (this.pendingTakeAll) {
+            return;
+        }
+        this.pendingTakeAll = true;
+        ClientPlayNetworking.send(new TakeAllParcelsPayload(this.data.pos(), this.page));
     }
 
     private void send() {
@@ -259,9 +295,26 @@ public class MailboxScreen extends Screen {
     }
 
     private void drawInbox(GuiGraphicsExtractor graphics, int left, int top, int mouseX, int mouseY) {
+        int pages = Math.max(1, (this.data.totalCount() + OpenMailboxPayload.PAGE_SIZE - 1)
+                / OpenMailboxPayload.PAGE_SIZE);
+
+        if (this.prevPage != null) {
+            this.prevPage.active = this.page > 0;
+        }
+        if (this.nextPage != null) {
+            this.nextPage.active = this.page + 1 < pages;
+        }
+        if (this.takeAllButton != null) {
+            this.takeAllButton.active = !this.pendingTakeAll && this.data.totalCount() > 0;
+        }
+
         graphics.text(this.font,
                 Component.translatable("postbox.screen.parcels_waiting", this.data.totalCount()),
                 left + 10, top + 24, DIM);
+
+        Component pageLabel = Component.translatable("postbox.screen.page", this.page + 1, pages);
+        graphics.text(this.font, pageLabel,
+                left + PANEL_WIDTH - 56 - this.font.width(pageLabel), top + 24, GRAY);
 
         if (this.data.parcels().isEmpty()) {
             graphics.text(this.font, Component.translatable("postbox.screen.empty"),
@@ -288,13 +341,6 @@ public class MailboxScreen extends Screen {
             Component from = Component.translatable("postbox.screen.from", entry.senderName());
             graphics.text(this.font, from,
                     left + PANEL_WIDTH - 10 - this.font.width(from), rowY + 4, GRAY);
-        }
-
-        int hidden = this.data.totalCount() - this.data.parcels().size();
-        if (hidden > 0) {
-            graphics.text(this.font, Component.translatable("postbox.screen.more", hidden),
-                    left + 10, top + ROWS_TOP + this.data.parcels().size() * ROW_HEIGHT + 2,
-                    0xFF808080);
         }
     }
 
@@ -365,7 +411,8 @@ public class MailboxScreen extends Screen {
                 int rowY = top + ROWS_TOP + i * ROW_HEIGHT;
                 if (mouseX >= left + 8 && mouseX < left + PANEL_WIDTH - 8
                         && mouseY >= rowY - 2 && mouseY < rowY + ROW_HEIGHT - 2) {
-                    ClientPlayNetworking.send(new TakeParcelPayload(this.data.pos(), i));
+                    ClientPlayNetworking.send(new TakeParcelPayload(this.data.pos(),
+                            this.page * OpenMailboxPayload.PAGE_SIZE + i, this.page));
                     return true;
                 }
             }

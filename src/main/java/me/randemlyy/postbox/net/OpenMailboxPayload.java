@@ -11,16 +11,16 @@ import org.jspecify.annotations.NonNull;
 import java.util.List;
 import io.netty.buffer.ByteBuf;
 
-public record OpenMailboxPayload(BlockPos pos, String ownerName, int totalCount, List<ParcelEntry> parcels, List<String> mailboxes, boolean initial)
+public record OpenMailboxPayload(BlockPos pos, String ownerName, int totalCount, int page, List<ParcelEntry> parcels, List<String> mailboxes, boolean initial)
         implements CustomPacketPayload {
 
-    public static final int PREVIEW_COUNT = 6;
+    public static final int PAGE_SIZE = 6;
     public static final int MAX_MAILBOXES = 32;
 
     public static final Type<OpenMailboxPayload> TYPE = new Type<>(Postbox.id("open_mailbox"));
 
     private static final StreamCodec<RegistryFriendlyByteBuf, List<ParcelEntry>> PARCELS_CODEC =
-            ByteBufCodecs.<RegistryFriendlyByteBuf, ParcelEntry>list(PREVIEW_COUNT)
+            ByteBufCodecs.<RegistryFriendlyByteBuf, ParcelEntry>list(PAGE_SIZE)
                     .apply(ParcelEntry.STREAM_CODEC);
 
     private static final StreamCodec<ByteBuf, List<String>> MAILBOXES_CODEC =
@@ -32,6 +32,7 @@ public record OpenMailboxPayload(BlockPos pos, String ownerName, int totalCount,
                     BlockPos.STREAM_CODEC, OpenMailboxPayload::pos,
                     ByteBufCodecs.STRING_UTF8, OpenMailboxPayload::ownerName,
                     ByteBufCodecs.VAR_INT, OpenMailboxPayload::totalCount,
+                    ByteBufCodecs.VAR_INT, OpenMailboxPayload::page,
                     PARCELS_CODEC, OpenMailboxPayload::parcels,
                     MAILBOXES_CODEC, OpenMailboxPayload::mailboxes,
                     ByteBufCodecs.BOOL, OpenMailboxPayload::initial,

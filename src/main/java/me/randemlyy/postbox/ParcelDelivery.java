@@ -13,16 +13,26 @@ public final class ParcelDelivery {
     private ParcelDelivery() {}
 
     public static void deliver(ServerPlayer player, Parcel parcel, BlockPos pos) {
+        deliver(player, parcel, pos, false);
+    }
+
+    public static void deliver(ServerPlayer player, Parcel parcel, BlockPos pos, boolean quiet) {
         ItemStack stack = parcel.stack().copy();
 
-        if (!player.getInventory().add(stack)){
+        if (!player.getInventory().add(stack)) {
             player.spawnAtLocation(player.level(), stack);
-            player.sendSystemMessage(Component.literal("Your inventory is full - the parcel is at your feet")
-                    .withStyle(ChatFormatting.YELLOW));
+            if (!quiet) {
+                player.sendSystemMessage(Component.translatable("postbox.parcel.inventory_full")
+                        .withStyle(ChatFormatting.YELLOW));
+            }
         }
 
-        player.sendSystemMessage(Component.literal("Took " + parcel.stack().getHoverName().getString() + " x" + parcel.stack().getCount() + " from " + parcel.senderName()));
+        if (quiet) {
+            return;
+        }
 
+        player.sendSystemMessage(Component.translatable("postbox.parcel.took",
+                parcel.stack().getHoverName(), parcel.stack().getCount(), parcel.senderName()));
         player.level().playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.8f, 1.2f);
     }
 }

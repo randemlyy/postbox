@@ -7,6 +7,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -24,6 +26,7 @@ public final class PostboxNetworking {
         PayloadTypeRegistry.serverboundPlay().register(MailboxRequestPayload.TYPE, MailboxRequestPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TakeParcelPayload.TYPE, TakeParcelPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SendParcelPayload.TYPE, SendParcelPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(TakeAllParcelsPayload.TYPE, TakeAllParcelsPayload.STREAM_CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(SendParcelPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
@@ -57,7 +60,7 @@ public final class PostboxNetworking {
             if (!isOwnMailbox(player, payload.pos()) || !canReach(player, payload.pos())) {
                 return;
             }
-            sendMailbox(player, payload.pos());
+            sendMailbox(player, payload.pos(), payload.page(), false);
         });
 
         ServerPlayNetworking.registerGlobalReceiver(TakeParcelPayload.TYPE, (payload, context) -> {
@@ -70,7 +73,32 @@ public final class PostboxNetworking {
                     .takeAt(player.getUUID(), payload.index())
                     .ifPresent(parcel -> ParcelDelivery.deliver(player, parcel, payload.pos()));
 
-            sendMailbox(player, payload.pos());
+            sendMailbox(player, payload.pos(), payload.page(), false);
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(TakeAllParcelsPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            if (!isOwnMailbox(player, payload.pos()) || !canReach(player, payload.pos())) {
+                notice(player, "postbox.notice.too_far", "", true);
+                return;
+            }
+
+            ParcelData parcels = ParcelData.of(player.level().getServer());
+            int taken = 0;
+            Parcel parcel;
+
+            while ((parcel = parcels.takeOldest(player.getUUID()).orElse(null)) != null) {
+                ParcelDelivery.deliver(player, parcel, payload.pos(), true);
+                taken++;
+            }
+
+            if (taken > 0) {
+                player.level().playSound(null, payload.pos(),
+                        SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.8f, 1.2f);
+                notice(player, "postbox.notice.took_all", String.valueOf(taken), false);
+            }
+
+            sendMailbox(player, payload.pos(), payload.page(), false);
         });
 
         ServerPlayNetworking.registerGlobalReceiver(SealLetterPayload.TYPE, (payload, context) -> {
@@ -116,10 +144,14 @@ public final class PostboxNetworking {
     }
 
     public static void sendMailbox(ServerPlayer player, BlockPos pos) {
-        sendMailbox(player, pos, false);
+        sendMailbox(player, pos, 0, false);
     }
 
     public static void sendMailbox(ServerPlayer player, BlockPos pos, boolean initial) {
+        sendMailbox(player, pos, 0, initial);
+    }
+
+    public static void sendMailbox(ServerPlayer player, BlockPos pos, int page, boolean initial) {
         if (!ServerPlayNetworking.canSend(player, OpenMailboxPayload.TYPE)) {
             return;
         }
@@ -132,8 +164,14 @@ public final class PostboxNetworking {
         List<Parcel> waiting = ParcelData.of(player.level().getServer())
                 .forRecipient(player.getUUID());
 
+        int total = waiting.size();
+        int pages = Math.max(1, (total + OpenMailboxPayload.PAGE_SIZE - 1) / OpenMailboxPayload.PAGE_SIZE);
+        int current = Math.max(0, Math.min(page, pages - 1));
+        int from = current * OpenMailboxPayload.PAGE_SIZE;
+        int to = Math.min(from + OpenMailboxPayload.PAGE_SIZE, total);
+
         List<ParcelEntry> preview = new ArrayList<>();
-        for (int i = 0; i < Math.min(waiting.size(), OpenMailboxPayload.PREVIEW_COUNT); i++) {
+        for (int i = from; i < to; i++) {
             Parcel parcel = waiting.get(i);
             preview.add(new ParcelEntry(parcel.senderName(), parcel.stack()));
         }
@@ -151,7 +189,7 @@ public final class PostboxNetworking {
         }
 
         ServerPlayNetworking.send(player, new OpenMailboxPayload(
-                pos, mailbox.ownerName(), waiting.size(), preview, mailboxes, initial));
+                pos, mailbox.ownerName(), total, current, preview, mailboxes, initial));
     }
 
     private static InteractionHand heldHand(ServerPlayer player) {
