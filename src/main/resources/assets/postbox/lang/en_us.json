@@ -8,5 +8,20 @@
   "postbox.screen.parcels_waiting": "Parcels waiting: %s",
   "postbox.screen.empty": "Your mailbox is empty",
   "postbox.screen.from": "from %s",
-  "postbox.screen.more": "and %s more"
+  "postbox.screen.more": "and %s more",
+  "postbox.screen.send": "Send",
+  "postbox.screen.send_button": "Send parcel",
+  "postbox.screen.back": "Back",
+  "postbox.screen.to": "To",
+  "postbox.screen.amount": "Amount",
+  "postbox.screen.sending": "Sending: %s x%s of %s",
+  "postbox.screen.hold_item": "Hold an item to send",
+  "postbox.screen.mailboxes": "Mailboxes",
+  "postbox.screen.no_mailboxes": "No other mailboxes yet",
+  "postbox.screen.no_recipient": "Type a name first",
+  "postbox.notice.sent": "Parcel sent to %s",
+  "postbox.notice.no_mailbox": "Nobody called \"%s\" has a mailbox",
+  "postbox.notice.self": "You cannot post a parcel to yourself",
+  "postbox.notice.full": "%s's mailbox is full",
+  "postbox.notice.empty_hand": "Your hand is empty"
 }

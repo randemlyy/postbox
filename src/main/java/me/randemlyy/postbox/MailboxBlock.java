@@ -87,7 +87,7 @@ public class MailboxBlock extends Block implements EntityBlock {
         }
 
         if (ServerPlayNetworking.canSend(serverPlayer, OpenMailboxPayload.TYPE)) {
-            PostboxNetworking.sendMailbox(serverPlayer, pos);
+            PostboxNetworking.sendMailbox(serverPlayer, pos, true);
             return InteractionResult.SUCCESS;
         }
 
@@ -152,7 +152,11 @@ public class MailboxBlock extends Block implements EntityBlock {
         }
 
         if (player instanceof ServerPlayer serverPlayer) {
-            ParcelWriter.begin(serverPlayer, hand);
+            if (ServerPlayNetworking.canSend(serverPlayer, OpenMailboxPayload.TYPE)) {
+                PostboxNetworking.sendMailbox(serverPlayer, pos, true);
+            } else {
+                ParcelWriter.begin(serverPlayer, hand);
+            }
         }
         return InteractionResult.SUCCESS;
     }
