@@ -1,17 +1,13 @@
 package me.randemlyy.postbox;
 
-import me.randemlyy.postbox.net.MailboxNoticePayload;
-import me.randemlyy.postbox.net.MailboxRequestPayload;
-import me.randemlyy.postbox.net.OpenMailboxPayload;
-import me.randemlyy.postbox.net.ParcelEntry;
-import me.randemlyy.postbox.net.SendParcelPayload;
-import me.randemlyy.postbox.net.TakeParcelPayload;
-
+import me.randemlyy.postbox.net.*;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +24,8 @@ public final class PostboxNetworking {
         PayloadTypeRegistry.serverboundPlay().register(MailboxRequestPayload.TYPE, MailboxRequestPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TakeParcelPayload.TYPE, TakeParcelPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SendParcelPayload.TYPE, SendParcelPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(SealLetterResultPayload.TYPE, SealLetterResultPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(SealLetterPayload.TYPE, SealLetterPayload.STREAM_CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(MailboxRequestPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
@@ -50,26 +48,46 @@ public final class PostboxNetworking {
             sendMailbox(player, payload.pos());
         });
 
-        ServerPlayNetworking.registerGlobalReceiver(SendParcelPayload.TYPE, (payload, context) -> {
+        ServerPlayNetworking.registerGlobalReceiver(SealLetterPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
-            if (!isOwnMailbox(player, payload.pos()) || !canReach(player, payload.pos())) {
+            InteractionHand hand = payload.mainHand() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+            ItemStack stack = player.getItemInHand(hand);
+
+            if (!(stack.getItem() instanceof LetterItem) || stack.hasNonDefault(DataComponents.LORE)) {
+                sealResult(player, false, "postbox.letter.already_sealed", "");
                 return;
             }
 
-            ParcelPost.Result result = ParcelPost.send(player, heldHand(player),
-                    payload.recipientName(), payload.amount());
+            String to = payload.to().trim();
+            String message = payload.message().trim();
 
-            switch (result.outcome()) {
-                case SENT -> {
-                    notice(player, "postbox.notice.sent", result.recipientName(), false);
-                    sendMailbox(player, payload.pos());
-                }
-                case NO_MAILBOX -> notice(player, "postbox.notice.no_mailbox", payload.recipientName(), true);
-                case SELF -> notice(player, "postbox.notice.self", "", true);
-                case FULL -> notice(player, "postbox.notice.full", result.recipientName(), true);
-                case EMPTY_HAND -> notice(player, "postbox.notice.empty_hand", "", true);
+            if (message.isEmpty()) {
+                sealResult(player, false, "postbox.letter.empty", "");
+                return;
             }
+            if (message.length() > LetterWriter.MAX_MESSAGE_LENGTH) {
+                sealResult(player, false, "postbox.letter.too_long",
+                        String.valueOf(LetterWriter.MAX_MESSAGE_LENGTH));
+                return;
+            }
+
+            ServerPlayer target = player.level().getServer().getPlayerList().getPlayer(to);
+            if (target == null) {
+                sealResult(player, false, "postbox.letter.not_online", to);
+                return;
+            }
+            if (target.getUUID().equals(player.getUUID())) {
+                sealResult(player, false, "postbox.letter.self", "");
+                return;
+            }
+
+            LetterWriter.seal(player, stack, target.getScoreboardName(), message);
+            sealResult(player, true, "postbox.letter.sealed", target.getScoreboardName());
         });
+    }
+
+    private static void sealResult(ServerPlayer player, boolean success, String key, String arg) {
+        ServerPlayNetworking.send(player, new SealLetterResultPayload(success, key, arg));
     }
 
     public static void sendMailbox(ServerPlayer player, BlockPos pos) {

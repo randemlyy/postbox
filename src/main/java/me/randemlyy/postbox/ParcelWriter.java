@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
@@ -28,6 +29,7 @@ public final class ParcelWriter {
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register(
                 (message, sender, params) -> handleChat(message.signedContent(), sender)
         );
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> SESSIONS.clear());
     }
 
     public static boolean isWriting(UUID id) {

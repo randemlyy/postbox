@@ -23,5 +23,18 @@
   "postbox.notice.no_mailbox": "Nobody called \"%s\" has a mailbox",
   "postbox.notice.self": "You cannot post a parcel to yourself",
   "postbox.notice.full": "%s's mailbox is full",
-  "postbox.notice.empty_hand": "Your hand is empty"
+  "postbox.notice.empty_hand": "Your hand is empty",
+  "postbox.screen.letter": "Letter",
+  "postbox.screen.letter_to": "To",
+  "postbox.screen.letter_body": "Write your message...",
+  "postbox.screen.letter_players": "Online players",
+  "postbox.screen.seal": "Seal",
+  "postbox.screen.char_count": "%s/%s",
+  "postbox.letter.self": "You cannot post a letter to yourself",
+  "postbox.letter.not_online": "%s is not online",
+  "postbox.letter.empty": "Write something first",
+  "postbox.letter.need_name": "Type a name first",
+  "postbox.letter.too_long": "Keep it under %s characters",
+  "postbox.letter.already_sealed": "That letter is already sealed",
+  "postbox.letter.sealed": "Letter sealed for %s"
 }

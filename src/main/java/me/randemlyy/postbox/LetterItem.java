@@ -1,5 +1,7 @@
 package me.randemlyy.postbox;
 
+import me.randemlyy.postbox.net.SealLetterPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -23,13 +25,17 @@ public class LetterItem extends Item{
 
     @Override
     public @NonNull InteractionResult use(@NonNull Level level, @NonNull Player player, @NonNull InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
 
-        ItemStack stack = player.getItemInHand(hand);
-        LetterWriter.useLetter(player, hand, stack);
+        if (player instanceof ServerPlayer serverPlayer && ServerPlayNetworking.canSend(serverPlayer, SealLetterPayload.TYPE)) {
+            return InteractionResult.SUCCESS_SERVER;
+        }
 
+        LetterWriter.useLetter(player, hand, stack);
         return InteractionResult.SUCCESS_SERVER;
     }
 

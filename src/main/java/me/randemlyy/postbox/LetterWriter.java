@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.ClickEvent;
@@ -25,7 +28,7 @@ public final class LetterWriter {
     private enum Stage { ASK_NAME, ASK_MESSAGE }
 
     private static final long TIMEOUT_TICKS = 20L * 60L;
-    private static final int MAX_MESSAGE_LENGTH = 400;
+    public static final int MAX_MESSAGE_LENGTH = 400;
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
@@ -37,6 +40,7 @@ public final class LetterWriter {
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register(
                 (message, sender, params) -> handleChat(message.signedContent(), sender)
         );
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> SESSIONS.clear());
     }
 
     public static void useLetter(Player player, InteractionHand hand, @NonNull ItemStack stack) {
@@ -107,11 +111,11 @@ public final class LetterWriter {
             return;
         }
 
-//        if (target.getUUID().equals(sender.getUUID())) {
-//            sender.sendSystemMessage(Component.literal("You cannot post a letter to yourself")
-//                    .withStyle(ChatFormatting.RED));
-//            return;
-//        }
+        if (target.getUUID().equals(sender.getUUID())) {
+            sender.sendSystemMessage(Component.translatable("postbox.letter.self")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
 
         long expiresAt = sender.level().getLevelData().getGameTime() + TIMEOUT_TICKS;
         SESSIONS.put(sender.getUUID(), new Session(session.hand(), Stage.ASK_MESSAGE, target.getScoreboardName(), expiresAt));
@@ -138,7 +142,7 @@ public final class LetterWriter {
 
     private static void finishLetter(ServerPlayer sender, Session session, @NonNull String text) {
 
-        // Verifies max character limit of letter message
+        // verifies max character limit of letter message
         if (text.length() > MAX_MESSAGE_LENGTH) {
             sender.sendSystemMessage(Component.literal("Too long - keep it under " + MAX_MESSAGE_LENGTH + " characters"));
             return;
@@ -146,7 +150,7 @@ public final class LetterWriter {
 
         ItemStack stack = sender.getItemInHand(session.hand());
 
-        // Checks whether the letter is still equipped by the player when finishing the letter
+        // checks whether the letter is still equipped by the player when finishing the letter
         if (!(stack.getItem() instanceof LetterItem)) {
             SESSIONS.remove(sender.getUUID());
             sender.sendSystemMessage(Component.literal("The letter is no longer in your hand - cancelled")
@@ -156,15 +160,7 @@ public final class LetterWriter {
 
         SESSIONS.remove(sender.getUUID());
 
-        List<Component> lines = List.of(
-                Component.literal(LetterContents.TO_PREFIX + session.recipientName()),
-                Component.literal(LetterContents.FROM_PREFIX + sender.getScoreboardName()),
-                Component.literal(text)
-        );
-
-        stack.set(DataComponents.LORE, new ItemLore(lines));
-        stack.set(DataComponents.CUSTOM_NAME,
-                Component.literal("Letter to " + session.recipientName()));
+        seal(sender, stack, session.recipientName(), text);
 
         sender.sendSystemMessage(Component.literal("Sealed. Right-click the letter to read it.")
                 .withStyle(ChatFormatting.GREEN));
@@ -182,6 +178,14 @@ public final class LetterWriter {
         player.sendSystemMessage(Component.literal(LetterContents.FROM_PREFIX + contents.from()));
         player.sendSystemMessage(Component.literal(contents.message()));
 
+    }
+
+    public static void seal(ServerPlayer sender, ItemStack stack, String recipientName, String message) {
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.literal(LetterContents.TO_PREFIX + recipientName),
+                Component.literal(LetterContents.FROM_PREFIX + sender.getScoreboardName()),
+                Component.literal(message))));
+        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Letter to " + recipientName));
     }
 
     public static void cancel(Player player) {
