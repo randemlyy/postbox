@@ -24,8 +24,33 @@ public final class PostboxNetworking {
         PayloadTypeRegistry.serverboundPlay().register(MailboxRequestPayload.TYPE, MailboxRequestPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TakeParcelPayload.TYPE, TakeParcelPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SendParcelPayload.TYPE, SendParcelPayload.STREAM_CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(SendParcelPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+
+            if (!isOwnMailbox(player, payload.pos()) || !canReach(player, payload.pos())) {
+                notice(player, "postbox.notice.too_far", "", true);
+                return;
+            }
+
+            ParcelPost.Result result = ParcelPost.send(
+                    player, heldHand(player), payload.recipientName(), payload.amount());
+
+            switch (result.outcome()) {
+                case SENT -> {
+                    notice(player, "postbox.notice.sent", result.recipientName(), false);
+                    sendMailbox(player, payload.pos());
+                }
+                case NO_MAILBOX -> notice(player, "postbox.notice.no_mailbox", result.recipientName(), true);
+                case SELF -> notice(player, "postbox.notice.self", "", true);
+                case FULL -> notice(player, "postbox.notice.full", result.recipientName(), true);
+                case EMPTY_HAND -> notice(player, "postbox.notice.empty_hand", "", true);
+            }
+        });
+
         PayloadTypeRegistry.clientboundPlay().register(SealLetterResultPayload.TYPE, SealLetterResultPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SealLetterPayload.TYPE, SealLetterPayload.STREAM_CODEC);
+
 
         ServerPlayNetworking.registerGlobalReceiver(MailboxRequestPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();

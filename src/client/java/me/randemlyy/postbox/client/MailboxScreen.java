@@ -54,6 +54,7 @@ public class MailboxScreen extends Screen {
 
     private Component notice;
     private boolean noticeError;
+    private boolean pendingSend;
     private long noticeUntil;
 
     public MailboxScreen(OpenMailboxPayload data) {
@@ -75,12 +76,17 @@ public class MailboxScreen extends Screen {
 
     public void showNotice(MailboxNoticePayload payload) {
         showNotice(payload.key(), payload.arg(), payload.error());
+
+        this.pendingSend = true;
+
     }
 
     private void showNotice(String key, String arg, boolean error) {
         this.notice = Component.translatable(key, arg);
         this.noticeError = error;
         this.noticeUntil = System.currentTimeMillis() + NOTICE_MILLIS;
+        this.pendingSend = true;
+
     }
 
     @Override
@@ -147,11 +153,19 @@ public class MailboxScreen extends Screen {
             return;
         }
 
+        if (this.pendingSend) {
+            return;
+        }
+
         String name = this.recipientBox.getValue().trim();
         if (name.isEmpty()) {
             showNotice("postbox.screen.no_recipient", "", true);
             return;
         }
+
+
+        this.pendingSend = true;
+
 
         ClientPlayNetworking.send(new SendParcelPayload(this.data.pos(), name, plannedAmount()));
     }
@@ -324,7 +338,8 @@ public class MailboxScreen extends Screen {
         }
 
         if (this.sendButton != null) {
-            this.sendButton.active = !held.isEmpty()
+            this.sendButton.active = !this.pendingSend
+                    && !held.isEmpty()
                     && !this.recipientBox.getValue().trim().isEmpty()
                     && plannedAmount() > 0;
         }
