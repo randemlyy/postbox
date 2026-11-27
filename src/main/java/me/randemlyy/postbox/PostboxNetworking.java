@@ -7,8 +7,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -93,8 +91,6 @@ public final class PostboxNetworking {
             }
 
             if (taken > 0) {
-                player.level().playSound(null, payload.pos(),
-                        SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.8f, 1.2f);
                 notice(player, "postbox.notice.took_all", String.valueOf(taken), false);
             }
 

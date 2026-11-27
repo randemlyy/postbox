@@ -10,7 +10,9 @@ import me.randemlyy.postbox.LetterItem;
 import me.randemlyy.postbox.net.SealLetterPayload;
 import me.randemlyy.postbox.net.SealLetterResultPayload;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
@@ -32,7 +34,12 @@ public class PostboxClient implements ClientModInitializer {
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(MailboxNoticePayload.TYPE, (payload, context) -> {
-			if (Minecraft.getInstance().gui.screen() instanceof MailboxScreen screen) {
+			Minecraft minecraft = Minecraft.getInstance();
+
+			minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
+					payload.error() ? SoundEvents.VILLAGER_NO : SoundEvents.ITEM_PICKUP, 1.0f));
+
+			if (minecraft.gui.screen() instanceof MailboxScreen screen) {
 				screen.showNotice(payload);
 			}
 		});
@@ -51,7 +58,19 @@ public class PostboxClient implements ClientModInitializer {
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(SealLetterResultPayload.TYPE, (payload, context) -> {
-			if (Minecraft.getInstance().gui.screen() instanceof LetterComposeScreen screen) {
+			Minecraft minecraft = Minecraft.getInstance();
+
+			if (payload.success()) {
+				if (minecraft.player != null) {
+					minecraft.player.sendOverlayMessage(
+							Component.translatable("postbox.letter.sealed", payload.arg()));
+				}
+				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.0f));
+			} else {
+				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.VILLAGER_NO, 1.0f));
+			}
+
+			if (minecraft.gui.screen() instanceof LetterComposeScreen screen) {
 				screen.showResult(payload);
 			}
 		});

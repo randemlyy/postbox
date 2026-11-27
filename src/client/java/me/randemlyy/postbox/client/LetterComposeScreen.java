@@ -28,6 +28,8 @@ public class LetterComposeScreen extends Screen {
     private static final int NAME_ROW = 14;
     private static final int MAX_NAMES = 4;
     private static final int MAX_MESSAGE = 400;
+    private int nameScroll;
+    private boolean pending;
 
     private final boolean mainHand;
     private String toDraft = "";
@@ -51,7 +53,10 @@ public class LetterComposeScreen extends Screen {
                 Component.translatable("postbox.screen.letter_to"));
         this.toBox.setMaxLength(16);
         this.toBox.setValue(this.toDraft);
-        this.toBox.setResponder(value -> this.toDraft = value);
+        this.toBox.setResponder(value -> {
+            this.toDraft = value;
+            this.nameScroll = 0;
+        });
         addRenderableWidget(this.toBox);
 
         this.bodyBox = MultiLineEditBox.builder()
@@ -73,6 +78,7 @@ public class LetterComposeScreen extends Screen {
     }
 
     public void showResult(SealLetterResultPayload payload) {
+        this.pending = false;
         if (payload.success()) {
             onClose();
             return;
@@ -81,6 +87,10 @@ public class LetterComposeScreen extends Screen {
     }
 
     private void seal() {
+        if (this.pending) {
+            return;
+        }
+
         String to = this.toBox.getValue().trim();
         String body = this.bodyBox.getValue().trim();
 
@@ -93,10 +103,11 @@ public class LetterComposeScreen extends Screen {
             return;
         }
 
+        this.pending = true;
         ClientPlayNetworking.send(new SealLetterPayload(this.mainHand, to, body));
     }
 
-    private List<String> visibleNames() {
+    private List<String> allNames() {
         ClientPacketListener connection = Minecraft.getInstance().getConnection();
         if (connection == null) {
             return List.of();
@@ -119,7 +130,14 @@ public class LetterComposeScreen extends Screen {
             names.add(name);
         }
         names.sort(String.CASE_INSENSITIVE_ORDER);
-        return names.size() > MAX_NAMES ? names.subList(0, MAX_NAMES) : names;
+        return names;
+    }
+
+    private List<String> visibleNames() {
+        List<String> all = allNames();
+        int from = Math.min(this.nameScroll, Math.max(0, all.size() - MAX_NAMES));
+        int to = Math.min(from + MAX_NAMES, all.size());
+        return all.subList(from, to);
     }
 
     @Override
@@ -134,7 +152,16 @@ public class LetterComposeScreen extends Screen {
         graphics.text(this.font, Component.translatable("postbox.screen.letter_to"), left + 10, top + 33, 0xFFB0B0B0);
         graphics.text(this.font, Component.translatable("postbox.screen.letter_players"), left + 10, top + 52, 0xFF808080);
 
+        List<String> all = allNames();
         List<String> names = visibleNames();
+
+        if (all.size() > MAX_NAMES) {
+            int from = Math.min(this.nameScroll, Math.max(0, all.size() - MAX_NAMES)) + 1;
+            int to = from + names.size() - 1;
+            Component range = Component.translatable("postbox.screen.range", from, to, all.size());
+            graphics.text(this.font, range,
+                    left + W - 10 - this.font.width(range), top + 52, 0xFF808080);
+        }
         for (int i = 0; i < names.size(); i++) {
             int rowY = top + NAMES_TOP + i * NAME_ROW;
             if (mouseX >= left + 8 && mouseX < left + W - 8 && mouseY >= rowY && mouseY < rowY + NAME_ROW) {
@@ -148,13 +175,35 @@ public class LetterComposeScreen extends Screen {
         graphics.text(this.font, count, left + W - 10 - this.font.width(count), top + 214, 0xFF909090);
 
         if (this.notice != null) {
-            graphics.text(this.font, this.notice, left + 10, top + 228, 0xFFFF5555);
+            String noticeText = this.font.plainSubstrByWidth(this.notice.getString(), W - 20);
+            graphics.text(this.font, Component.literal(noticeText), left + 10, top + 228, 0xFFFF5555);
         }
 
-        this.sealButton.active = !this.toBox.getValue().trim().isEmpty()
+        this.sealButton.active = !this.pending
+                && !this.toBox.getValue().trim().isEmpty()
                 && !this.bodyBox.getValue().trim().isEmpty();
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        int left = (this.width - W) / 2;
+        int top = (this.height - H) / 2;
+        int step = scrollY > 0 ? -1 : 1;
+
+        if (mouseX >= left + 8 && mouseX < left + W - 8
+                && mouseY >= top + NAMES_TOP
+                && mouseY < top + NAMES_TOP + MAX_NAMES * NAME_ROW) {
+            int max = Math.max(0, allNames().size() - MAX_NAMES);
+            int next = Math.max(0, Math.min(this.nameScroll + step, max));
+            if (next != this.nameScroll) {
+                this.nameScroll = next;
+                return true;
+            }
+        }
+
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
